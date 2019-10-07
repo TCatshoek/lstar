@@ -96,8 +96,8 @@ class DFALearner:
         for (s1, s2) in eqrows:
             for a in [self._tostr(a) for a in self.A]:
                 cur_consistent = self._get_row(f'{s1},{a}') == self._get_row(f'{s2},{a}')
-                if not cur_consistent:
-                    print("Inconsistency found:", f'{s1},{a}', f'{s2},{a}')
+                # if not cur_consistent:
+                # print("Inconsistency found:", f'{s1},{a}', f'{s2},{a}')
                 is_consistent &= cur_consistent
 
         return is_consistent
@@ -231,7 +231,7 @@ class DFALearner:
             if equivalent:
                 return hypothesis
 
-            print('COUNTER', counterexample)
+            print('COUNTEREXAMPLE', counterexample)
 
             # if not, add counterexample and prefixes to S
             for i in range(1, len(counterexample)):
@@ -242,9 +242,9 @@ class DFALearner:
 
 
 if __name__ == "__main__":
-    s1 = State(1)
-    s2 = State(2)
-    s3 = State(3)
+    s1 = State('s1')
+    s2 = State('s2')
+    s3 = State('s3')
 
 
     s1.add_edge('a', s2)
@@ -260,6 +260,4 @@ if __name__ == "__main__":
     learner = DFALearner(sm.gather_alphabet(), sm, eqc)
 
     hyp = learner.run_lstar()
-
-    print(hyp)
 
