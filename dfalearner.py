@@ -198,11 +198,11 @@ class DFALearner:
                     sa_row = tuple(self._get_row(f'{s},{a}'))
                     if sa_row in states.keys():
                         # TODO: Connections to self?
-                        if s_row != sa_row:
-                            try:
-                                states[s_row].add_edge(a, states[sa_row])
-                            except:
-                                print('SKIPPING ADD', states[s_row], a, states[sa_row])
+                        #if s_row != sa_row:
+                        try:
+                            states[s_row].add_edge(a, states[sa_row])
+                        except:
+                            print('SKIPPING ADD', states[s_row], a, states[sa_row])
             else:
                 visited_rows.append(s_row)
 
@@ -251,7 +251,7 @@ if __name__ == "__main__":
 
     s2.add_edge('b', s3)
 
-    s3.add_edge('c', s1)
+    s3.add_edge('c', s3)
 
     sm = StateMachine(s1, [s3])
 
