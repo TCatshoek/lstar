@@ -1,7 +1,11 @@
-from collections.abc import Iterable
+# Need this to fix types
+from __future__ import annotations
+
+from typing import Union, Iterable, Dict
+
 
 class State:
-    def __init__(self, name, edges=None):
+    def __init__(self, name: str, edges=None):
         if edges is None:
             edges = {}
 
@@ -11,7 +15,7 @@ class State:
     def __str__(self):
         return f'[State: {self.name}, edges: {[f"{a}:{n.name}" for a, n in self.edges.items()]}]'
 
-    def add_edge(self, action, other_state):
+    def add_edge(self, action: str, other_state: State):
         if action not in self.edges.keys():
             self.edges[action] = other_state
         else:
@@ -23,8 +27,9 @@ class State:
         else:
             raise Exception(f'Invalid action {action} from state {self.name}')
 
+
 class StateMachine:
-    def __init__(self, initial_state, accepting_states):
+    def __init__(self, initial_state: State, accepting_states: Union[State, Iterable[State]]):
         self.initial_state = initial_state
         self.state = initial_state
 
@@ -48,7 +53,10 @@ class StateMachine:
         #Hacky backslash thing
         tab = '\t'
         nl = '\n'
-        return f'[StateMachine: \n { nl.join([f"{tab}{str(state)}" for state in visited]) } \n]'
+        return f'[StateMachine: \n { nl.join([f"{tab}{str(state)}" for state in visited]) } ' \
+               f'\n\n\t[Initial state: {self.initial_state.name}]' \
+               f'\n\t[Accepting states: {[s.name for s in self.accepting_states]}]' \
+               f'\n]'
 
     # Traverses all states and collects all possible actions (i.e. the alphabet of the language)
     def gather_alphabet(self):
@@ -88,9 +96,9 @@ class StateMachine:
 
 
 if __name__ == "__main__":
-    s1 = State(1)
-    s2 = State(2)
-    s3 = State(3)
+    s1 = State('s1')
+    s2 = State('s2')
+    s3 = State('s3')
 
     s1.add_edge('to2', s2)
     s2.add_edge('to3', s3)
