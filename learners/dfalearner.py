@@ -1,33 +1,32 @@
-from prettytable import PrettyTable
-from statemachine import StateMachine, State
+from suls.statemachine import StateMachine, State
 from itertools import product, chain, combinations
 from functools import reduce
-from equivalencechecker import EquivalenceChecker
+from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
+from learners.learner import Learner
+from teachers.teacher import Teacher
 
-class DFALearner:
-    def __init__(self, alphabet, dfa: StateMachine, equivalencechecker:EquivalenceChecker):
+# Implements the L* algorithm by Dana Angluin
+#
+# Right now, it does some unnecessary conversions of the sets into a comma separated string representation,
+# because apparently it is impossible to put an empty tuple in a set in python.
+# TODO: come up with a better solution for this
+class DFALearner(Learner):
+    def __init__(self, teacher: Teacher):
         # Observation table (S, E, T)
+        super().__init__(teacher)
         self.S = set()
         self.E = set()
         self.T = {}
 
         # Alphabet A
-        self.A = set([(x,) for x in alphabet])
+        self.A = set([(x,) for x in teacher.get_alphabet()])
 
-        # DFA under test
-        self.dfa = dfa
-
-        # Equivalence checker "oracle"
-        self.eqc = equivalencechecker
-
-    # Acceptance query
+    # Membership query
     def query(self, query):
-        self.dfa.reset()
-
         if query in self.T.keys():
             return self.T[query]
         else:
-            accepted = self.dfa.process_input(query)
+            accepted = self.teacher.member_query(query)
             self.T[query] = accepted
             return accepted
 
@@ -104,21 +103,24 @@ class DFALearner:
 
 
     def print_observationtable(self):
-        table = PrettyTable()
-
-        # Get sorted, comma separated string representation of S ∪ S·A
-        SUSA = ['λ'] + sorted([self._tostr(a) for a in list(self._SUSA())])
-        table.add_column("T", SUSA)
-
-        # Get sorted string representation of E
-        E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
-        E = ['λ'] + E
-        #print('E', E)
-
-        for e in E:
-            table.add_column(str(e), [self.query(self._rebuildquery(f'{s},{e}')) for s in SUSA])
-
-        print(table)
+        pass
+    # TODO: find a better library to print tables, this one isn't customizable enough
+    # def print_observationtable(self):
+    #     table = PrettyTable()
+    #
+    #     # Get sorted, comma separated string representation of S ∪ S·A
+    #     SUSA = ['λ'] + sorted([self._tostr(a) for a in list(self._SUSA())])
+    #     table.add_column("T", SUSA)
+    #
+    #     # Get sorted string representation of E
+    #     E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
+    #     E = ['λ'] + E
+    #     #print('E', E)
+    #
+    #     for e in E:
+    #         table.add_column(str(e), [self.query(self._rebuildquery(f'{s},{e}')) for s in SUSA])
+    #
+    #     print(table)
 
     def step(self):
         if not self._is_consistent():
@@ -202,13 +204,14 @@ class DFALearner:
                         try:
                             states[s_row].add_edge(a, states[sa_row])
                         except:
-                            print('SKIPPING ADD', states[s_row], a, states[sa_row])
+                            pass
+                            #print('SKIPPING ADD', states[s_row], a, states[sa_row])
             else:
                 visited_rows.append(s_row)
 
         return StateMachine(initial_state, accepting_states)
 
-    def run_lstar(self):
+    def run(self):
         self.print_observationtable()
 
         equivalent = False
@@ -223,10 +226,10 @@ class DFALearner:
             print("HYPOTHESIS")
             print(hypothesis)
 
-            print("ACTUAL")
-            print(self.dfa)
+            # print("ACTUAL")
+            # print(self.dfa)
 
-            equivalent, counterexample = self.eqc.test_equivalence(hypothesis)
+            equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
 
             if equivalent:
                 return hypothesis
@@ -255,9 +258,11 @@ if __name__ == "__main__":
 
     sm = StateMachine(s1, [s3])
 
-    eqc = EquivalenceChecker(sm)
+    eqc = BFEquivalenceChecker(sm)
 
-    learner = DFALearner(sm.gather_alphabet(), sm, eqc)
+    teacher = Teacher(sm, eqc)
 
-    hyp = learner.run_lstar()
+    learner = DFALearner(teacher)
+
+    hyp = learner.run()
 

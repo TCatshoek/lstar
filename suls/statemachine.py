@@ -1,8 +1,7 @@
 # Need this to fix types
 from __future__ import annotations
-
-from typing import Union, Iterable, Dict
-
+from typing import Union, Iterable
+from suls.sul import SUL
 
 class State:
     def __init__(self, name: str, edges=None):
@@ -28,7 +27,8 @@ class State:
             raise Exception(f'Invalid action {action} from state {self.name}')
 
 
-class StateMachine:
+# A statemachine can represent a system under learning
+class StateMachine(SUL):
     def __init__(self, initial_state: State, accepting_states: Union[State, Iterable[State]]):
         self.initial_state = initial_state
         self.state = initial_state
@@ -59,7 +59,7 @@ class StateMachine:
                f'\n]'
 
     # Traverses all states and collects all possible actions (i.e. the alphabet of the language)
-    def gather_alphabet(self):
+    def get_alphabet(self):
         actions = []
         to_visit = [self.initial_state]
         visited = []
@@ -93,21 +93,3 @@ class StateMachine:
 
     def reset(self):
         self.state = self.initial_state
-
-
-if __name__ == "__main__":
-    s1 = State('s1')
-    s2 = State('s2')
-    s3 = State('s3')
-
-    s1.add_edge('to2', s2)
-    s2.add_edge('to3', s3)
-    s3.add_edge('to1', s1)
-
-    sm = StateMachine(s1, s3)
-
-    print(sm.gather_alphabet())
-
-    accepted = sm.process_input(['to2', 'to3', 'to1', 'to2', 'to3'])
-
-    print(f'Accepted: {accepted}')
