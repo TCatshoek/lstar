@@ -34,11 +34,11 @@ from teachers.teacher import Teacher
 #
 # print('ACTUAL', sm)
 
-# Set up a simple state machine (S1) =a> (S2) =b> ((S3))
-sm = RegexMachine('(b*abb*)b*')
+# Set up a SUT using regex
+sm = RegexMachine('(bb)*(aa)*(bb)*')
 
 # We are using the brute force equivalence checker
-eqc = BFEquivalenceChecker(sm, max_depth=10)
+eqc = BFEquivalenceChecker(sm, max_depth=15)
 
 # Set up the teacher, with the system under learning and the equivalence checker
 teacher = Teacher(sm, eqc)
