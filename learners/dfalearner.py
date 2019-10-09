@@ -211,7 +211,7 @@ class DFALearner(Learner):
 
         return StateMachine(initial_state, accepting_states)
 
-    def run(self):
+    def run(self) -> StateMachine:
         self.print_observationtable()
 
         equivalent = False
