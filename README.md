@@ -6,11 +6,11 @@ Example run on a very simple state machine can be found in `main.py`
 
 The only equivalence checker currently implemented just bruteforces it's way through all possible input combinations and is probably too slow for any real world problems.
 
-####Installation
+#### Installation
 The only dependency right now is graphviz `pip install graphviz`
 
 Please make sure the `dot` executable is in your path.
-####Simple example
+#### Simple example
 ```python
 # Set up a SUT using regex
 sm = RegexMachine('(bb)*(aa)*(bb)*')
