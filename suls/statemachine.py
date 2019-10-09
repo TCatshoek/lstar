@@ -1,7 +1,10 @@
 # Need this to fix types
 from __future__ import annotations
+
 from typing import Union, Iterable
 from suls.sul import SUL
+
+from graphviz import Digraph
 
 class State:
     def __init__(self, name: str, edges=None):
@@ -47,7 +50,7 @@ class StateMachine(SUL):
                 visited.append(cur_state)
 
             for action, other_state in cur_state.edges.items():
-                if other_state not in visited:
+                if other_state not in visited and other_state not in to_visit:
                     to_visit.append(other_state)
 
         #Hacky backslash thing
@@ -70,7 +73,7 @@ class StateMachine(SUL):
 
             for action, other_state in cur_state.edges.items():
                 actions.append(action)
-                if other_state not in visited:
+                if other_state not in visited and other_state not in to_visit:
                     to_visit.append(other_state)
 
         return set(actions)
@@ -93,3 +96,42 @@ class StateMachine(SUL):
 
     def reset(self):
         self.state = self.initial_state
+
+    def render_graph(self, filename):
+        g = Digraph('G', filename=filename)
+        g.attr(rankdir='LR')
+
+        # Collect nodes and edges
+        to_visit = [self.initial_state]
+        visited = []
+
+        # Hacky way to draw start arrow pointing to first node
+        g.attr('node', shape='none')
+        g.node('startz', label='', _attributes={'height': '0', 'width': '0'})
+
+        # Draw initial state
+        g.attr('node', shape='doublecircle')
+        g.node(self.initial_state.name)
+
+        g.edge('startz', self.initial_state.name)
+
+        while len(to_visit) > 0:
+            cur_state = to_visit.pop()
+            visited.append(cur_state)
+
+            g.attr('node', shape='circle')
+            for action, other_state in cur_state.edges.items():
+                # Draw other states, but only once
+                if other_state not in visited and other_state not in to_visit:
+                    to_visit.append(other_state)
+                    if other_state in self.accepting_states:
+                        g.attr('node', shape='doublecircle')
+                        g.node(other_state.name)
+                        g.attr('node', shape='circle')
+                    else:
+                        g.node(other_state.name)
+
+                # Draw edges too
+                g.edge(cur_state.name, other_state.name, label=action)
+
+        g.view()
