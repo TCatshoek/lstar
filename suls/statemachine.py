@@ -110,7 +110,10 @@ class StateMachine(SUL):
         g.node('startz', label='', _attributes={'height': '0', 'width': '0'})
 
         # Draw initial state
-        g.attr('node', shape='doublecircle')
+        if self.initial_state in self.accepting_states:
+            g.attr('node', shape='doublecircle')
+        else:
+            g.attr('node', shape='circle')
         g.node(self.initial_state.name)
 
         g.edge('startz', self.initial_state.name)
