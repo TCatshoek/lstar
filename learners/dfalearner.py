@@ -4,18 +4,20 @@ from functools import reduce
 from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
 from learners.learner import Learner
 from teachers.teacher import Teacher
+from typing import Set, Tuple
 
 # Implements the L* algorithm by Dana Angluin
-#
-# Right now, it does some unnecessary conversions of the sets into a comma separated string representation,
-# because apparently it is impossible to put an empty tuple in a set in python.
-# TODO: come up with a better solution for this
 class DFALearner(Learner):
     def __init__(self, teacher: Teacher):
-        # Observation table (S, E, T)
         super().__init__(teacher)
+
+        # Observation table (S, E, T)
         self.S = set()
         self.E = set()
+
+        self.S.add(tuple())
+        self.E.add(tuple())
+
         self.T = {}
 
         # Alphabet A
@@ -32,14 +34,10 @@ class DFALearner(Learner):
 
     # Calculates S·A
     def _SA(self):
-        if len(self.S) > 0:
-            SA = set([tuple(chain.from_iterable(x)) for x in list(product(self.S, self.A))]).union(self.A)
-        else:
-            SA = self.A
-        return SA
+        return set([tuple(chain.from_iterable(x)) for x in list(product(self.S, self.A))]).union(self.A)
 
     # Calculates S ∪ S·A
-    def _SUSA(self):
+    def _SUSA(self) -> Set[Tuple]:
         SA = self._SA()
 
         #print('S·A', SA)
@@ -56,30 +54,20 @@ class DFALearner(Learner):
         return tuple(filter(lambda x: x != 'λ', strquery.split(',')))
 
     # row(s), s in S ∪ S·A
-    def _get_row(self, s):
-
-        s = self._tostr(self._rebuildquery(s))
-
-        SUSA = ['λ'] + sorted([self._tostr(a) for a in list(self._SUSA())])
-        if s not in SUSA:
+    def _get_row(self, s: Tuple):
+        if s not in self._SUSA():
             raise Exception("s not in S ∪ S·A")
 
-        E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
-        E = ['λ'] + E
-
-        row = [self.query(self._rebuildquery(f'{s},{e}')) for e in E]
+        row = [self.query(s + e) for e in self.E]
 
         return row
 
     def _is_closed(self):
         is_closed = True
 
-        # Get sorted, comma separated string representation of S
-        S = ['λ'] + sorted([self._tostr(a) for a in list(self.S)])
+        S_rows = [self._get_row(s) for s in self.S]
 
-        S_rows = [self._get_row(s) for s in S]
-
-        for t in [self._tostr(x) for x in self._SA()]:
+        for t in self._SA():
             is_closed &= self._get_row(t) in S_rows
 
         return is_closed
@@ -88,13 +76,12 @@ class DFALearner(Learner):
         is_consistent = True
 
         # Gather equal rows
-        S = ['λ'] + sorted([self._tostr(a) for a in list(self.S)])
-        eqrows = [(s1, s2) for (s1, s2) in combinations(S, 2) if self._get_row(s1) == self._get_row(s2)]
+        eqrows = [(s1, s2) for (s1, s2) in combinations(self.S, 2) if self._get_row(s1) == self._get_row(s2)]
 
         # Check if all these rows are still consistent after appending a
         for (s1, s2) in eqrows:
-            for a in [self._tostr(a) for a in self.A]:
-                cur_consistent = self._get_row(f'{s1},{a}') == self._get_row(f'{s2},{a}')
+            for a in self.A:
+                cur_consistent = self._get_row(s1 + a) == self._get_row(s2 + a)
                 # if not cur_consistent:
                 # print("Inconsistency found:", f'{s1},{a}', f'{s2},{a}')
                 is_consistent &= cur_consistent
@@ -124,47 +111,33 @@ class DFALearner(Learner):
 
     def step(self):
         if not self._is_consistent():
-
-            print("Attempting to make consistent")
-
             # Gather equal rows
-            S = ['λ'] + sorted([self._tostr(a) for a in list(self.S)])
-            eqrows = [(s1, s2) for (s1, s2) in combinations(S, 2) if self._get_row(s1) == self._get_row(s2)]
-
-            # Gather A
-            A = sorted([self._tostr(a) for a in list(self.A)])
-
-            # Gather E
-            E = ['λ'] + (sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else [])
+            eqrows = [(s1, s2) for (s1, s2) in combinations(self.S, 2) if self._get_row(s1) == self._get_row(s2)]
 
             # Check if T(s1·a·e) != T(s2·a·e), and add a·e to E if so.
-            AE = list(product(A, E))
+            AE = list(product(self.A, self.E))
             for (s1, s2) in eqrows:
                 for (a, e) in AE:
-                    T_s1ae = self.query(self._rebuildquery(f'{s1},{a},{e}'))
-                    T_s2ae = self.query(self._rebuildquery(f'{s2},{a},{e}'))
+                    T_s1ae = self.query(s1 + a + e)
+                    T_s2ae = self.query(s2 + a + e)
 
                     if T_s1ae != T_s2ae:
-                        print('Adding', self._tostr(self._rebuildquery(f'{a},{e}')), 'to E')
-                        self.E.add(self._rebuildquery(f'{a},{e}'))
+                        print('Adding', self._tostr(a + e), 'to E')
+                        self.E.add(a + e)
 
             # Rebuild observation table
             self.print_observationtable()
 
         if not self._is_closed():
             # Gather all rows in S
-            S = ['λ'] + sorted([self._tostr(a) for a in list(self.S)])
-            S_rows = [self._get_row(s) for s in S]
-
-            # Gather A
-            A = sorted([self._tostr(a) for a in list(self.A)])
+            S_rows = [self._get_row(s) for s in self.S]
 
             # Find a row(s·a) that is not in [row(s) for all s in S]
-            SA = product(S, A)
+            SA = product(self.S, self.A)
             for (s, a) in SA:
-                row_sa = self._get_row(f'{s},{a}')
+                row_sa = self._get_row(s + a)
                 if row_sa not in S_rows:
-                    self.S.add(self._rebuildquery(f'{s},{a}'))
+                    self.S.add(s + a)
 
             self.print_observationtable()
 
@@ -174,12 +147,12 @@ class DFALearner(Learner):
     # Builds the hypothesised dfa using the currently available information
     def build_dfa(self):
         # Gather states from S
-        S = ['λ'] + sorted([self._tostr(a) for a in list(self.S)])
+        S = self.S
 
         # The rows can function as index to the 'state' objects
         state_rows = set([tuple(self._get_row(s)) for s in S])
-        initial_state_row = tuple(self._get_row('λ'))
-        accepting_states_rows = set([tuple(self._get_row(s)) for s in S if self.query(self._rebuildquery(s))])
+        initial_state_row = tuple(self._get_row(tuple()))
+        accepting_states_rows = set([tuple(self._get_row(s)) for s in S if self.query(s)])
 
         # Generate state names for convenience
         state_names = {state_row: f's{n + 1}' for (n, state_row) in enumerate(state_rows)}
@@ -190,22 +163,20 @@ class DFALearner(Learner):
         accepting_states = [states[a_s] for a_s in accepting_states_rows]
 
         # Add the connections between states
-        A = sorted([self._tostr(a) for a in list(self.A)])
+        A = [a for (a,) in self.A]
         # Keep track of states already visited
         visited_rows = []
         for s in S:
             s_row = tuple(self._get_row(s))
             if s_row not in visited_rows:
                 for a in A:
-                    sa_row = tuple(self._get_row(f'{s},{a}'))
+                    sa_row = tuple(self._get_row(s + (a,)))
                     if sa_row in states.keys():
-                        # TODO: Connections to self?
-                        #if s_row != sa_row:
                         try:
                             states[s_row].add_edge(a, states[sa_row])
                         except:
+                            # Can't add the same edge twice
                             pass
-                            #print('SKIPPING ADD', states[s_row], a, states[sa_row])
             else:
                 visited_rows.append(s_row)
 
@@ -225,9 +196,6 @@ class DFALearner(Learner):
 
             print("HYPOTHESIS")
             print(hypothesis)
-
-            # print("ACTUAL")
-            # print(self.dfa)
 
             equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
 
