@@ -13,7 +13,7 @@ class RegexMachine(SUL):
             inputs = [inputs]
 
         # Get string representation of the input sequence
-        if inputs == tuple():
+        if len(inputs) == 0:
             input = ''
         else:
             input = reduce(lambda x, y: str(x) + str(y), inputs)
