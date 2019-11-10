@@ -54,6 +54,7 @@ class RERSConnector(SUL, ABC):
         # Extract it and put it into a list
         return re.search('{(.*)}', tmp.decode()).group(1).split(',')
 
+
 # Connects and interacts with the RERS programs, returning booleans for DFA learning
 # True is returned on a verifier error (so these turn into an accepting state)
 # False is returned otherwise
@@ -120,6 +121,7 @@ class BooleanRERSConnector(RERSConnector):
         # Or we got through the entire input string without hitting a verifier error / invalid input
         self.cache[inputs] = False
         return False
+
 
 # Interacts with the compiled RERS programs,
 # But returns strings instead of booleans for mealy machine learning.
