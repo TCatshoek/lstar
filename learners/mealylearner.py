@@ -190,7 +190,7 @@ class MealyLearner(Learner):
 
         return MealyMachine(initial_state)
 
-    def run(self) -> MealyMachine:
+    def run(self, show_intermediate=False) -> MealyMachine:
         self.print_observationtable()
 
         equivalent = False
@@ -204,6 +204,9 @@ class MealyLearner(Learner):
 
             print("HYPOTHESIS")
             print(hypothesis)
+
+            if show_intermediate:
+                hypothesis.render_graph("tmp")
 
             equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
 

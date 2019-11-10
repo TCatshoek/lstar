@@ -188,7 +188,7 @@ class DFALearner(Learner):
 
         return StateMachine(initial_state, accepting_states)
 
-    def run(self) -> StateMachine:
+    def run(self, show_intermediate=False) -> StateMachine:
         self.print_observationtable()
 
         equivalent = False
@@ -202,6 +202,9 @@ class DFALearner(Learner):
 
             print("HYPOTHESIS")
             print(hypothesis)
+
+            if show_intermediate:
+                hypothesis.render_graph("tmp")
 
             equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
 
