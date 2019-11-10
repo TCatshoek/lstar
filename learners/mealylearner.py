@@ -1,13 +1,14 @@
-from suls.statemachine import StateMachine, State
+from suls.mealymachine import MealyMachine, MealyState
 from itertools import product, chain, combinations
 from functools import reduce
 from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
 from learners.learner import Learner
 from teachers.teacher import Teacher
-from typing import Set, Tuple
-
-# Implements the L* algorithm by Dana Angluin
-class DFALearner(Learner):
+from typing import Set, Tuple, Dict
+from tabulate import tabulate
+# Implements the L* algorithm by Dana Angluin, modified for mealy machines as per
+# https://link.springer.com/chapter/10.1007%2F978-3-642-05089-3_14
+class MealyLearner(Learner):
     def __init__(self, teacher: Teacher):
         super().__init__(teacher)
 
@@ -15,24 +16,26 @@ class DFALearner(Learner):
         self.S = set()
         self.E = set()
 
+        # S starts with the empty string
         self.S.add(tuple())
-        self.E.add(tuple())
 
         self.T = {}
 
         # Alphabet A
         self.A = set([(x,) for x in teacher.get_alphabet()])
 
+        # at the start, E = A
+        for a in self.A:
+            self.E.add(a)
+
     # Membership query
     def query(self, query):
-        #print("Query:", query)
         if query in self.T.keys():
-            #print("Returning cached")
             return self.T[query]
         else:
-            accepted = self.teacher.member_query(query)
-            self.T[query] = accepted
-            return accepted
+            output = self.teacher.member_query(query)
+            self.T[query] = output
+            return output
 
     # Calculates S·A
     def _SA(self):
@@ -90,26 +93,28 @@ class DFALearner(Learner):
 
         return is_consistent
 
-
     def print_observationtable(self):
-        pass
-    # TODO: find a better library to print tables, this one isn't customizable enough
-    # def print_observationtable(self):
-    #     table = PrettyTable()
-    #
-    #     # Get sorted, comma separated string representation of S ∪ S·A
-    #     SUSA = ['λ'] + sorted([self._tostr(a) for a in list(self._SUSA())])
-    #     table.add_column("T", SUSA)
-    #
-    #     # Get sorted string representation of E
-    #     E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
-    #     E = ['λ'] + E
-    #     #print('E', E)
-    #
-    #     for e in E:
-    #         table.add_column(str(e), [self.query(self._rebuildquery(f'{s},{e}')) for s in SUSA])
-    #
-    #     print(table)
+        rows = []
+
+        S = sorted([self._tostr(a) for a in list(self.S)])
+        SA = sorted([self._tostr(a) for a in list(self._SA())])
+        E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
+
+        rows.append([" ", "T"] + E)
+        for s in S:
+            row = ["S", s]
+            for e in E:
+                row.append(self.query(self._rebuildquery(f'{s},{e}')))
+            rows.append(row)
+
+        rows_sa = []
+        for sa in SA:
+            row = ["SA", sa]
+            for e in E:
+                row.append(self.query(self._rebuildquery(f'{sa},{e}')))
+            rows_sa.append(row)
+
+        print(tabulate(rows + rows_sa, headers="firstrow",tablefmt="fancy_grid"))
 
     def step(self):
         if not self._is_consistent():
@@ -154,15 +159,14 @@ class DFALearner(Learner):
         # The rows can function as index to the 'state' objects
         state_rows = set([tuple(self._get_row(s)) for s in S])
         initial_state_row = tuple(self._get_row(tuple()))
-        accepting_states_rows = set([tuple(self._get_row(s)) for s in S if self.query(s)])
+
 
         # Generate state names for convenience
         state_names = {state_row: f's{n + 1}' for (n, state_row) in enumerate(state_rows)}
 
         # Build the state objects and get the initial and accepting states
-        states = {state_row: State(state_names[state_row]) for state_row in state_rows}
+        states: Dict[Tuple, MealyState] = {state_row: MealyState(state_names[state_row]) for state_row in state_rows}
         initial_state = states[initial_state_row]
-        accepting_states = [states[a_s] for a_s in accepting_states_rows]
 
         # Add the connections between states
         A = [a for (a,) in self.A]
@@ -175,16 +179,17 @@ class DFALearner(Learner):
                     sa_row = tuple(self._get_row(s + (a,)))
                     if sa_row in states.keys():
                         try:
-                            states[s_row].add_edge(a, states[sa_row])
+                            cur_output = self.query(s + (a,))
+                            states[s_row].add_edge(a, cur_output, states[sa_row])
                         except:
                             # Can't add the same edge twice
                             pass
             else:
                 visited_rows.append(s_row)
 
-        return StateMachine(initial_state, accepting_states)
+        return MealyMachine(initial_state)
 
-    def run(self) -> StateMachine:
+    def run(self) -> MealyMachine:
         self.print_observationtable()
 
         equivalent = False
@@ -214,27 +219,26 @@ class DFALearner(Learner):
 
 
 
-
-
 if __name__ == "__main__":
-    s1 = State('s1')
-    s2 = State('s2')
-    s3 = State('s3')
+    s1 = MealyState('1')
+    s2 = MealyState('2')
+    s3 = MealyState('3')
 
+    s1.add_edge('a', 'nice', s2)
+    s1.add_edge('b', 'B', s1)
+    s2.add_edge('a', 'nice', s3)
+    s2.add_edge('b', 'back lol', s1)
+    s3.add_edge('a', 'A', s3)
+    s3.add_edge('b', 'B', s1)
 
-    s1.add_edge('a', s2)
+    mm = MealyMachine(s1)
 
-    s2.add_edge('b', s3)
+    print(str(mm))
 
-    s3.add_edge('c', s3)
+    eqc = BFEquivalenceChecker(mm)
 
-    sm = StateMachine(s1, [s3])
+    teacher = Teacher(mm, eqc)
 
-    eqc = BFEquivalenceChecker(sm)
-
-    teacher = Teacher(sm, eqc)
-
-    learner = DFALearner(teacher)
+    learner = MealyLearner(teacher)
 
     hyp = learner.run()
-
