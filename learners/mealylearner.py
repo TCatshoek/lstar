@@ -6,6 +6,7 @@ from learners.learner import Learner
 from teachers.teacher import Teacher
 from typing import Set, Tuple, Dict
 from tabulate import tabulate
+
 # Implements the L* algorithm by Dana Angluin, modified for mealy machines as per
 # https://link.springer.com/chapter/10.1007%2F978-3-642-05089-3_14
 class MealyLearner(Learner):
@@ -203,8 +204,6 @@ class MealyLearner(Learner):
 
             print("HYPOTHESIS")
             print(hypothesis)
-
-            hypothesis.render_graph('test.gv')
 
             equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
 
