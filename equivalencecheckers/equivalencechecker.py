@@ -20,6 +20,7 @@ class BFEquivalenceChecker(EquivalenceChecker):
         self.A = sul.get_alphabet()
         self.max_depth = max_depth
 
+
     def test_equivalence(self, test_sul: SUL) -> Tuple[bool, Iterable]:
         counterexample = None
         found = False
