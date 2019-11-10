@@ -5,6 +5,7 @@ from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
 from learners.learner import Learner
 from teachers.teacher import Teacher
 from typing import Set, Tuple
+from tabulate import tabulate
 
 # Implements the L* algorithm by Dana Angluin
 class DFALearner(Learner):
@@ -25,7 +26,9 @@ class DFALearner(Learner):
 
     # Membership query
     def query(self, query):
+        #print("Query:", query)
         if query in self.T.keys():
+            #print("Returning cached")
             return self.T[query]
         else:
             accepted = self.teacher.member_query(query)
@@ -90,24 +93,27 @@ class DFALearner(Learner):
 
 
     def print_observationtable(self):
-        pass
-    # TODO: find a better library to print tables, this one isn't customizable enough
-    # def print_observationtable(self):
-    #     table = PrettyTable()
-    #
-    #     # Get sorted, comma separated string representation of S ∪ S·A
-    #     SUSA = ['λ'] + sorted([self._tostr(a) for a in list(self._SUSA())])
-    #     table.add_column("T", SUSA)
-    #
-    #     # Get sorted string representation of E
-    #     E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
-    #     E = ['λ'] + E
-    #     #print('E', E)
-    #
-    #     for e in E:
-    #         table.add_column(str(e), [self.query(self._rebuildquery(f'{s},{e}')) for s in SUSA])
-    #
-    #     print(table)
+        rows = []
+
+        S = sorted([self._tostr(a) for a in list(self.S)])
+        SA = sorted([self._tostr(a) for a in list(self._SA())])
+        E = sorted([self._tostr(e) for e in self.E]) if len(self.E) > 0 else []
+
+        rows.append([" ", "T"] + E)
+        for s in S:
+            row = ["S", s]
+            for e in E:
+                row.append(self.query(self._rebuildquery(f'{s},{e}')))
+            rows.append(row)
+
+        rows_sa = []
+        for sa in SA:
+            row = ["SA", sa]
+            for e in E:
+                row.append(self.query(self._rebuildquery(f'{sa},{e}')))
+            rows_sa.append(row)
+
+        print(tabulate(rows + rows_sa, headers="firstrow", tablefmt="fancy_grid"))
 
     def step(self):
         if not self._is_consistent():
