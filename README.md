@@ -1,13 +1,11 @@
 # lstar
 
-My implementation of the L* algorithm by Dana Angluin.
+My implementation of the L* algorithm by Dana Angluin. Also contains a modified version that learns mealy machines instead of DFAs.
 
-Example run on a very simple state machine can be found in `main.py`
-
-The only equivalence checker currently implemented just bruteforces it's way through all possible input combinations and is probably too slow for any real world problems.
+Currently the only available equivalence checkers are bruteforce, and random walk. W-method is on the todo list.
 
 #### Installation
-The only dependency right now is graphviz `pip install graphviz`
+Dependencies `pip install graphviz tabulate`
 
 Please make sure the `dot` executable is in your path.
 #### Simple example
