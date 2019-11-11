@@ -5,7 +5,7 @@ My implementation of the L* algorithm by Dana Angluin. Also contains a modified 
 Currently the only available equivalence checkers are bruteforce, and random walk. W-method is on the todo list.
 
 #### Installation
-Dependencies `pip install graphviz tabulate`
+Dependencies `pip install graphviz tabulate numpy`
 
 Please make sure the `dot` executable is in your path.
 #### Simple example
