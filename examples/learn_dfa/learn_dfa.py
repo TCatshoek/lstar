@@ -22,9 +22,7 @@ s3.add_edge('a', s3)
 s3.add_edge('b', s3)
 
 # Or use a regex to define the state machine
-# This is not the same as the above example since it *only* accepts the input string 'ab'
-# and does not have the connections looping to their own state
-#sm = RegexMachine('ab')
+#sm = RegexMachine('b*a+b.*')
 
 # We are using the brute force equivalence checker
 eqc = BFEquivalenceChecker(sm)
