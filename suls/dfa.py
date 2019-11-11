@@ -31,7 +31,7 @@ class State:
 
 
 # A statemachine can represent a system under learning
-class StateMachine(SUL):
+class DFA(SUL):
     def __init__(self, initial_state: State, accepting_states: Union[State, Iterable[State]]):
         self.initial_state = initial_state
         self.state = initial_state
@@ -56,7 +56,7 @@ class StateMachine(SUL):
         #Hacky backslash thing
         tab = '\t'
         nl = '\n'
-        return f'[StateMachine: \n { nl.join([f"{tab}{str(state)}" for state in visited]) } ' \
+        return f'[DFA: \n { nl.join([f"{tab}{str(state)}" for state in visited]) } ' \
                f'\n\n\t[Initial state: {self.initial_state.name}]' \
                f'\n\t[Accepting states: {[s.name for s in self.accepting_states]}]' \
                f'\n]'

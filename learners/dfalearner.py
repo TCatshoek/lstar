@@ -1,4 +1,4 @@
-from suls.statemachine import StateMachine, State
+from suls.dfa import DFA, State
 from itertools import product, chain, combinations
 from functools import reduce
 from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
@@ -186,9 +186,9 @@ class DFALearner(Learner):
             else:
                 visited_rows.append(s_row)
 
-        return StateMachine(initial_state, accepting_states)
+        return DFA(initial_state, accepting_states)
 
-    def run(self, show_intermediate=False) -> StateMachine:
+    def run(self, show_intermediate=False) -> DFA:
         self.print_observationtable()
 
         equivalent = False
@@ -233,7 +233,7 @@ if __name__ == "__main__":
 
     s3.add_edge('c', s3)
 
-    sm = StateMachine(s1, [s3])
+    sm = DFA(s1, [s3])
 
     eqc = BFEquivalenceChecker(sm)
 

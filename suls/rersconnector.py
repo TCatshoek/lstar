@@ -72,13 +72,13 @@ class BooleanRERSConnector(RERSConnector):
             if curprefix in self.invalid_prefixes:
                 print("[Skipped - Invalid prefix]")
                 self.needs_reset = False
-                self.cache[inputs] = False
+                #self.cache[inputs] = False
                 return True, False
             # Check if a prefix of the current input already hit a verifier error
             if curprefix in self.error_hit_prefixes:
                 print("[Skipped - Verifier error found]")
                 self.needs_reset = False
-                self.cache[inputs] = True
+                #self.cache[inputs] = True
                 return True, True
         # Or, if no cache hit:
         return False, None
@@ -140,14 +140,14 @@ class StringRERSConnector(RERSConnector):
                 print("[Skipped - Invalid prefix]")
                 result = self.invalid_prefixes[curprefix]
                 self.needs_reset = False
-                self.cache[inputs] = result
+                #self.cache[inputs] = result
                 return True, result
             # Check if a prefix of the current input already hit a verifier error
             if curprefix in self.error_hit_prefixes.keys():
                 print("[Skipped - Verifier error found]")
                 result = self.error_hit_prefixes[curprefix]
                 self.needs_reset = False
-                self.cache[inputs] = result
+                #self.cache[inputs] = result
                 return True, result
         # Or, if no cache hit:
         return False, None

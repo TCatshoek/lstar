@@ -3,7 +3,8 @@ from typing import Iterable
 from functools import reduce
 import re
 
-
+# Define a DFA using a regex
+# TODO: Better alphabet extraction
 class RegexMachine(SUL):
     def __init__(self, expression):
         self.expression = expression
