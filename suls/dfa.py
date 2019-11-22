@@ -41,6 +41,17 @@ class DFA(SUL):
         self.accepting_states = accepting_states
 
     def __str__(self):
+        states = self.get_states()
+
+        #Hacky backslash thing
+        tab = '\t'
+        nl = '\n'
+        return f'[DFA: \n { nl.join([f"{tab}{str(state)}" for state in states]) } ' \
+               f'\n\n\t[Initial state: {self.initial_state.name}]' \
+               f'\n\t[Accepting states: {[s.name for s in self.accepting_states]}]' \
+               f'\n]'
+
+    def get_states(self):
         to_visit = [self.initial_state]
         visited = []
 
@@ -53,30 +64,19 @@ class DFA(SUL):
                 if other_state not in visited and other_state not in to_visit:
                     to_visit.append(other_state)
 
-        #Hacky backslash thing
-        tab = '\t'
-        nl = '\n'
-        return f'[DFA: \n { nl.join([f"{tab}{str(state)}" for state in visited]) } ' \
-               f'\n\n\t[Initial state: {self.initial_state.name}]' \
-               f'\n\t[Accepting states: {[s.name for s in self.accepting_states]}]' \
-               f'\n]'
+        return visited
 
     # Traverses all states and collects all possible actions (i.e. the alphabet of the language)
     def get_alphabet(self):
-        actions = []
-        to_visit = [self.initial_state]
-        visited = []
+        states = self.get_states()
+        actions = set()
 
-        while len(to_visit) > 0:
-            cur_state = to_visit.pop()
-            visited.append(cur_state)
+        for state in states:
+            actions = actions.union(set(state.edges.keys()))
 
-            for action, other_state in cur_state.edges.items():
-                actions.append(action)
-                if other_state not in visited and other_state not in to_visit:
-                    to_visit.append(other_state)
+        print(actions)
 
-        return set(actions)
+        return actions
 
     # Runs the given inputs on the state machine
     def process_input(self, inputs):
