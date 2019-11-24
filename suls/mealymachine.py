@@ -70,7 +70,7 @@ class MealyMachine(SUL):
         for state in states:
             actions = actions.union(set(state.edges.keys()))
 
-        print(actions)
+        #print(actions)
 
         return actions
 
