@@ -5,6 +5,58 @@ import re
 from abc import ABC, abstractmethod
 from typing import Tuple
 
+import threading
+import time
+
+# Restarting a process with pexpect takes a long time,
+# So lets try creating a pool-ish thing that starts
+# Them in the background, so they're ready to go when
+# We need em
+class PexpectPool:
+    def __init__(self, path, n):
+        self.path = path
+        self.n = n
+        self.cur_idx = 0
+        self.processes = [None]*n
+        self.available = [False]*n
+        self._lock = threading.Lock()
+
+        threads = []
+        for i in range(n):
+            print('starting', i)
+            threads.append(threading.Thread(target=self._start, args=(i,)))
+            threads[i].start()
+            print('started', i)
+
+        for thread in threads:
+            print("started", thread)
+            thread.join()
+
+    def get(self):
+        with self._lock:
+            # Find the nearest slot that is ready to go
+            while True not in self.available:
+                time.sleep(0.01)
+
+            idx = self.available.index(True)
+            self.available[idx] = False
+
+            print('[CHECKOUT]', idx)
+
+            # Create a new process in the background soon
+            threading.Timer(0.5, self._start, args=[idx]).start()
+            return self.processes[idx]
+
+    def _start(self, index):
+
+        self.processes[index] = pexpect.spawn(self.path, encoding='utf-8')
+        self.available[index] = True
+
+    def reset(self, process):
+        threading.Thread(target=process.terminate)
+
+
+
 # This class serves as an adaptor to the RERS 2019 problems
 # It uses pexpect to interact with the compiled c programs
 # It also provides early stopping functionality for queries known
@@ -12,7 +64,8 @@ from typing import Tuple
 class RERSConnector(SUL, ABC):
     def __init__(self, path_to_binary):
         self.path = path_to_binary
-        self.p = pexpect.spawn(self.path, encoding='utf-8')
+        self.pool = PexpectPool(self.path, 10)
+        self.p = self.pool.get()
         self.needs_reset = True
         self.cache = {}
 
@@ -45,8 +98,8 @@ class RERSConnector(SUL, ABC):
     def reset(self):
         if self.needs_reset:
             print("[Reset]")
-            self.p.terminate()
-            self.p = pexpect.spawn(self.path, encoding='utf-8')
+            self.pool.reset(self.p)
+            self.p = self.pool.get()
 
     def get_alphabet(self):
         # Grep the source file for the line defining the input alphabet
@@ -198,12 +251,13 @@ class StringRERSConnector(RERSConnector):
 
 
 if __name__ == "__main__":
-    r = BooleanRERSConnector('../rers/SeqReachabilityRers2019/Problem11/Problem11')
+
+    r = BooleanRERSConnector('../rers/TrainingSeqReachRers2019/Problem11/Problem11')
     alphabet = r.get_alphabet()
 
     from numpy.random import choice
     input = list(choice(alphabet, 200))
-    input = ["3", "10"]
+    input = ["9", "10"]
     print("Sending", input)
     result = r.process_input(input)
     print("Result:", result)
