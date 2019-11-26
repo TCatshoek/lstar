@@ -18,6 +18,9 @@ class Partition:
     def __len__(self):
         return len(self.states)
 
+    def __str__(self):
+        return str(sorted(list(self.getStateNames())))
+
     def getStateNames(self):
         return set([state.name for state in self.states])
 
@@ -26,6 +29,9 @@ class Partition:
         cur_names = [state.name for state in self.states]
         if state.name not in cur_names:
             self.states.append(state)
+
+    def is_leaf(self):
+        return len(self) == 1
 
 class PTreeNode:
     def __init__(self, partitions: Dict[str, Partition] = None, prev_input=tuple(), parent: Partition = None):
@@ -39,9 +45,14 @@ class PTreeNode:
         self.partitions: Dict[str, Partition] = partitions
         self.parent: Partition = parent
 
+    def __str__(self):
+        return f'[{[f"{k}:{v.getStateNames()}" for k, v in self.partitions.items()]}]'
+
     def is_leaf(self):
-        # Leaf nodes have one partition with one state
-        return len(self.partitions.keys()) == 1 and len(list(self.partitions.values())[0]) == 1
+        leaf = True
+        for partition in self.partitions.values():
+            leaf &= len(partition) == 1
+        return leaf
 
 
 
@@ -70,6 +81,9 @@ def buildTree(node: PTreeNode, alphabet, seen):
         if curpartition.getStateNames() in seen:
             continue
 
+        if curpartition.is_leaf():
+            continue
+
         for a in alphabet:
             # Add outgoing edge from partition
             new_node = PTreeNode(prev_input=node.prev_input + (a,), parent=curpartition)
@@ -79,38 +93,47 @@ def buildTree(node: PTreeNode, alphabet, seen):
             for state in curpartition.states:
                 nextstate, response = state.next(a)
 
-                if a not in new_node.partitions.keys():
-                    new_node.partitions[a] = Partition()
+                if response not in new_node.partitions.keys():
+                    new_node.partitions[response] = Partition()
 
-                new_node.partitions[a].addState(nextstate)
+                new_node.partitions[response].addState(nextstate)
 
-        #seen.append(curpartition.getStateNames())
+        seen_tmp = seen.copy()
+        seen_tmp.append(curpartition.getStateNames())
         for new_node in curpartition.edges.values():
-            buildTree(new_node, alphabet, seen)
+            buildTree(new_node, alphabet, seen_tmp)
 
 def drawTree(node: PTreeNode):
-    graph = Digraph()
+    graph = Digraph(graph_attr={'compound': 'true'})
 
     to_visit = [node]
 
     while len(to_visit) > 0:
         cur_node = to_visit.pop()
 
-        if cur_node.is_leaf():
-            c = Digraph()
-            for partition in cur_node.partitions.values():
-                c.node(name=str(partition.getStateNames()))
-                graph.subgraph(c)
+        with graph.subgraph(name=f'cluster_{str(hex(id(cur_node)))}') as c:
+            print('making cluster', f'cluster_{str(hex(id(cur_node)))}')
 
-        else:
-            c = Digraph(node_attr={'shape': 'box'})
-            for partition in cur_node.partitions.values():
-                c.node(name=str(partition.getStateNames()))
-                graph.subgraph(c)
+            if cur_node.is_leaf():
+                c.attr(style='filled', color='darkgrey')
+            else:
+                c.attr(style='filled', color='lightgrey')
 
-        for partition in cur_node.partitions.values():
-            for other_node in partition.edges.values():
-                to_visit.append(other_node)
+            for partition in cur_node.partitions.values():
+                c.node(name=str(hex(id(partition))), label=str(partition))
+                for input, othernode in partition.edges.items():
+
+                    to_visit.append(othernode)
+
+                    otherpart = list(othernode.partitions.values())[0]
+                    graph.edge(
+                        str(hex(id(partition))),
+                        str(hex(id(otherpart))),
+                        _attributes={
+                            'lhead': f'cluster_{str(hex(id(othernode)))}',
+                            'label': str(input)
+                        })
+
 
     graph.view(tempfile.mktemp('.gv'))
 
@@ -121,11 +144,10 @@ def walkTree(root: PTreeNode):
     while len(to_visit) > 0:
         cur_node = to_visit.pop()
 
-        if cur_node.is_leaf():
-            print(cur_node, cur_node.prev_input)
-            dset.add(cur_node.prev_input)
-
         for partition in cur_node.partitions.values():
+            if partition.is_leaf():
+                print('leaf', partition)
+                dset.add(cur_node.prev_input)
             for other_node in partition.edges.values():
                 to_visit.append(other_node)
 
@@ -134,47 +156,53 @@ def walkTree(root: PTreeNode):
 
 if __name__ == '__main__':
     # Set up an example mealy machine
-    s1 = MealyState('1')
-    s2 = MealyState('2')
-    s3 = MealyState('3')
-    # s4 = MealyState('4')
-
-    s1.add_edge('a', 'nice', s2)
-    s1.add_edge('b', 'B', s1)
-    s2.add_edge('a', 'nice', s3)
-    s2.add_edge('b', 'back', s1)
-    s3.add_edge('a', 'A', s3)
-    s3.add_edge('b', 'back', s1)
-    # s4.add_edge('a', 'loop', s4)
-    # s4.add_edge('b', 'loop', s4)
-
-    mm = MealyMachine(s1)
-
-    # # Set up an example mealy machine
     # s1 = MealyState('1')
     # s2 = MealyState('2')
     # s3 = MealyState('3')
-    # s4 = MealyState('4')
+    # # s4 = MealyState('4')
     #
     # s1.add_edge('a', 'nice', s2)
-    # s1.add_edge('b', 'nic2', s3)
-    #
-    # s2.add_edge('a', 'nicea', s4)
+    # s1.add_edge('b', 'B', s1)
+    # s2.add_edge('a', 'nice', s3)
     # s2.add_edge('b', 'back', s1)
-    #
-    # s3.add_edge('a', 'nice', s4)
+    # s3.add_edge('a', 'A', s3)
     # s3.add_edge('b', 'back', s1)
-    #
-    # s4.add_edge('a', 'loop', s4)
-    # s4.add_edge('b', 'loop', s4)
+    # # s4.add_edge('a', 'loop', s4)
+    # # s4.add_edge('b', 'loop', s4)
     #
     # mm = MealyMachine(s1)
+
+    # # Set up an example mealy machine
+    s1 = MealyState('1')
+    s2 = MealyState('2')
+    s3 = MealyState('3')
+    s4 = MealyState('4')
+    s5 = MealyState('5')
+
+    s1.add_edge('a', 'nice', s2)
+    s1.add_edge('b', 'nic2', s3)
+
+    s2.add_edge('a', 'nicea', s4)
+    s2.add_edge('b', 'back', s1)
+
+    s3.add_edge('a', 'nice', s4)
+    s3.add_edge('b', 'back', s1)
+
+    s4.add_edge('a', 'nice!!', s5)
+    s4.add_edge('b', 'nice!', s5)
+
+    s5.add_edge('a', 'loop', s5)
+    s5.add_edge('b', 'loop', s5)
+
+    mm = MealyMachine(s1)
 
     tree = getDistinguishingSet(mm)
 
     dset = walkTree(tree)
 
-    states = [s1, s2, s3] #, s4]
+    print(dset)
+
+    states = [s1, s2, s3, s4, s5]
     for state in states:
         mm = MealyMachine(state)
         print(state)
