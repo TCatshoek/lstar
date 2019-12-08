@@ -64,15 +64,13 @@ def getDistinguishingSet(fsm: MealyMachine):
     states = fsm.get_states()
     alphabet = fsm.get_alphabet()
 
-    # Keep track of the partitions already seen, to prevent loops
-    seen = []
-
     root = PTreeNode({'': Partition(states)})
-    buildTree(root, alphabet, seen)
+    buildTree(root, alphabet)
 
-    return root
+    return walkTree2(root, states)
 
-def buildTree(node: PTreeNode, alphabet, seen):
+
+def buildTree(node: PTreeNode, alphabet, seen=list()):
     if node.is_leaf():
         return
 
@@ -153,6 +151,52 @@ def walkTree(root: PTreeNode):
 
     return dset
 
+# BFS, check origin state on finding partition with single state
+def walkTree2(root: PTreeNode, states: List[MealyState]):
+    to_visit = [root]
+    dset = set()
+
+    # Keep track of which states we have found a sequence for already
+    states_found = []
+
+    while len(to_visit) > 0:
+        cur_node = to_visit.pop(0)
+
+        for partition in cur_node.partitions.values():
+            if partition.is_leaf():
+                # Where did we come from?
+                cur_state = partition.states[0]
+                path = cur_node.prev_input
+
+                # Check what state we get in from all other states
+                tmp = [(state, _trace(state, path)) for state in states]
+
+                og_state = None
+                for initial_state, later_state in tmp:
+                    if later_state == cur_state and initial_state not in states_found:
+                        og_state = initial_state
+                        continue
+
+                # If we found a sequence for all states, we can quit
+                if set(states_found) == set(states):
+                    return dset
+
+                if og_state not in states_found:
+                    dset.add(path)
+                    states_found.append(og_state)
+
+
+            for other_node in partition.edges.values():
+                to_visit.append(other_node)
+
+    return dset
+
+def _trace(initial: MealyState, path):
+    cur_state = initial
+    for a in path:
+        next_state, output = cur_state.next(a)
+        cur_state = next_state
+    return cur_state
 
 if __name__ == '__main__':
     # Set up an example mealy machine
@@ -180,25 +224,41 @@ if __name__ == '__main__':
     s5 = MealyState('5')
 
     s1.add_edge('a', 'nice', s2)
-    s1.add_edge('b', 'nic2', s3)
+    s1.add_edge('b', 'nice', s3)
 
-    s2.add_edge('a', 'nicea', s4)
+    s2.add_edge('a', 'nice!', s4)
     s2.add_edge('b', 'back', s1)
 
     s3.add_edge('a', 'nice', s4)
     s3.add_edge('b', 'back', s1)
 
-    s4.add_edge('a', 'nice!!', s5)
-    s4.add_edge('b', 'nice!', s5)
+    s4.add_edge('a', 'nice', s5)
+    s4.add_edge('b', 'nice', s5)
 
     s5.add_edge('a', 'loop', s5)
     s5.add_edge('b', 'loop', s5)
 
+    # s1.add_edge('a', 'a', s2)
+    # s1.add_edge('b', 'b', s3)
+    #
+    # s2.add_edge('a', 'a', s4)
+    # s2.add_edge('b', 'b', s4)
+    #
+    # s3.add_edge('a', 'a', s5)
+    # s3.add_edge('b', 'b', s5)
+    #
+    # s4.add_edge('a', 'nice!', s4)
+    # s4.add_edge('b', 'nice!', s4)
+    #
+    # s5.add_edge('a', 'loop', s5)
+    # s5.add_edge('b', 'loop', s5)
+
+
     mm = MealyMachine(s1)
 
-    tree = getDistinguishingSet(mm)
+    dset = getDistinguishingSet(mm)
 
-    dset = walkTree(tree)
+    #dset = walkTree2(tree, mm.get_states())
 
     print(dset)
 
@@ -207,7 +267,7 @@ if __name__ == '__main__':
         mm = MealyMachine(state)
         print(state)
         for dseq in dset:
-            print([mm.process_input(x) for x in dseq])
+            print([mm.process_input(x) for x in dseq][-1])
             mm.reset()
 
-    drawTree(tree)
+    #drawTree(tree)
