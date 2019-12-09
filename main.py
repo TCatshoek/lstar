@@ -1,5 +1,6 @@
 from learners.dfalearner import DFALearner
-from equivalencecheckers.equivalencechecker import BFEquivalenceChecker, RandomWalkEquivalenceChecker
+from equivalencecheckers.randomwalk import RandomWalkEquivalenceChecker
+from equivalencecheckers.bruteforce import BFEquivalenceChecker
 #from equivalencecheckers.rers_checker import BFEquivalenceChecker
 from learners.mealylearner import MealyLearner
 from suls.dfa import State, DFA

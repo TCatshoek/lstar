@@ -1,4 +1,4 @@
-from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
+from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.mealylearner import MealyLearner
 from suls.mealymachine import MealyState, MealyMachine
 from teachers.teacher import Teacher

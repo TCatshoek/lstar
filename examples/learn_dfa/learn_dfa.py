@@ -1,4 +1,4 @@
-from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
+from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.dfalearner import DFALearner
 from suls.re_machine import RegexMachine
 from suls.dfa import State, DFA

@@ -1,7 +1,7 @@
 from suls.mealymachine import MealyMachine, MealyState
 from itertools import product, chain, combinations
 from functools import reduce
-from equivalencecheckers.equivalencechecker import BFEquivalenceChecker
+from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.learner import Learner
 from teachers.teacher import Teacher
 from typing import Set, Tuple, Dict
