@@ -1,3 +1,6 @@
+import tempfile
+
+from equivalencecheckers.wmethod import WmethodEquivalenceChecker
 from learners.dfalearner import DFALearner
 from equivalencecheckers.randomwalk import RandomWalkEquivalenceChecker
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
@@ -12,7 +15,8 @@ from teachers.teacher import Teacher
 sm = StringRERSConnector('rers/TrainingSeqReachRers2019/Problem11/Problem11')
 
 # We are using the brute force equivalence checker
-eqc = BFEquivalenceChecker(sm, max_depth=15)
+#eqc = BFEquivalenceChecker(sm, max_depth=15)
+eqc = WmethodEquivalenceChecker(sm, m=10)
 #eqc = RandomWalkEquivalenceChecker(sm, max_depth=30, num_samples=100000)
 
 # Set up the teacher, with the system under learning and the equivalence checker
@@ -26,4 +30,4 @@ hyp = learner.run(show_intermediate=True)
 
 print('ACTUAL', sm)
 
-hyp.render_graph('test.gv')
+hyp.render_graph(tempfile.mktemp('.gv'))

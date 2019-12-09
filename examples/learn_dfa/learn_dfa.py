@@ -1,3 +1,5 @@
+import tempfile
+
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.dfalearner import DFALearner
 from suls.re_machine import RegexMachine
@@ -36,4 +38,4 @@ learner = DFALearner(teacher)
 # Get the learners hypothesis
 hyp = learner.run()
 
-hyp.render_graph('dfa')
+hyp.render_graph(tempfile.mktemp('.gv'))

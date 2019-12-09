@@ -1,4 +1,7 @@
+import tempfile
+
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
+from equivalencecheckers.wmethod import WmethodEquivalenceChecker
 from learners.mealylearner import MealyLearner
 from suls.mealymachine import MealyState, MealyMachine
 from teachers.teacher import Teacher
@@ -18,7 +21,7 @@ s3.add_edge('b', 'back', s1)
 mm = MealyMachine(s1)
 
 # Use the brute force equivalence checker
-eqc = BFEquivalenceChecker(mm)
+eqc = WmethodEquivalenceChecker(mm)
 
 teacher = Teacher(mm, eqc)
 
@@ -27,4 +30,4 @@ learner = MealyLearner(teacher)
 
 hyp = learner.run()
 
-hyp.render_graph('mealy')
+hyp.render_graph(tempfile.mktemp('.gv'))
