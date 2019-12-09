@@ -29,6 +29,12 @@ class MealyState:
         else:
             raise Exception(f'Invalid action {action} from state {self.name}')
 
+    def next_state(self, action) -> MealyState:
+        if action in self.edges.keys():
+            return self.edges.get(action)[0]
+        else:
+            raise Exception(f'Invalid action {action} from state {self.name}')
+
 
 # A statemachine can represent a system under learning
 class MealyMachine(SUL):

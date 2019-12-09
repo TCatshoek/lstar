@@ -29,6 +29,9 @@ class State:
         else:
             raise Exception(f'Invalid action {action} from state {self.name}')
 
+    def next_state(self, action):
+        return next(action)
+
 
 # A statemachine can represent a system under learning
 class DFA(SUL):
