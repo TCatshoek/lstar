@@ -59,7 +59,7 @@ class PTreeNode:
 
 # Finds the optimal distinguishing set for a given state machine using
 # based on https://ieeexplore.ieee.org/document/1672636
-def getDistinguishingSet(fsm: MealyMachine):
+def get_distinguishing_set(fsm: MealyMachine):
     # Setup state machine
     states = fsm.get_states()
     alphabet = fsm.get_alphabet()
@@ -257,7 +257,7 @@ if __name__ == '__main__':
 
     mm = MealyMachine(s1)
 
-    dset = getDistinguishingSet(mm)
+    dset = get_distinguishing_set(mm)
 
     #dset = walkTree2(tree, mm.get_states())
 
