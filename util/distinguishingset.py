@@ -70,6 +70,7 @@ def getDistinguishingSet(fsm: MealyMachine):
     return walkTree2(root, states)
 
 
+# TODO: non-recursive implementation
 def buildTree(node: PTreeNode, alphabet, seen=list()):
     if node.is_leaf():
         return
