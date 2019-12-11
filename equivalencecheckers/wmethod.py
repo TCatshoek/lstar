@@ -12,9 +12,10 @@ from itertools import product, chain
 
 # Implements chow's W-method for equivalence checking
 class WmethodEquivalenceChecker(EquivalenceChecker):
-    def __init__(self, sul: SUL, m=5):
+    def __init__(self, sul: SUL, m=5, overshoot=0):
         super().__init__(sul)
         self.m = m
+        self.overshoot = overshoot
 
     def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
         # First generate test sequences
@@ -22,21 +23,27 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
         m = self.m
 
         if n > m:
-            m = n
+            m = n + self.overshoot
 
         assert m >= n, "hypothesis has more states than w-method bound"
 
         W = get_distinguishing_set(fsm)
         P = get_state_cover_set(fsm)
-        X = fsm.get_alphabet()
+        X = set([(x,) for x in fsm.get_alphabet()])
 
         Z = W.copy()
         for i in range(1, (m-n) + 1):
-            X_m_n = X if i == 1 else set(product(X, repeat=i))
+            X_m_n = X if i == 1 else set([tuple(chain.from_iterable(x)) for x in set(product(X, repeat=i))])
+            #X_m_n =  X_m_n])
             # Need to flatten the tuples because of how product works
-            Z = set([tuple(chain.from_iterable(x)) for x in Z.union(product(X_m_n, W))])
+            Z = Z.union(set([tuple(chain.from_iterable(x)) for x in product(X_m_n, W)]))
 
-        test_sequences = set([tuple(chain.from_iterable(x)) for x in list(product(P, Z))])
+        test_sequences = set([tuple(chain.from_iterable(x)) for x in set(product(P, Z))])
+
+        for pr in set(product(P, Z)):
+            tmp = tuple(chain.from_iterable(pr))
+            if '0' in tmp:
+                print(pr)
 
         print(test_sequences)
 
