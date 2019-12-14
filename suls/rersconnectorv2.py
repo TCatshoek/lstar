@@ -28,15 +28,19 @@ class RERSConnectorV2(SUL):
 
         result = None
         for idx, line in enumerate(output_lines):
-            if match := re.match("[0-9]+$", line):
-                result = match.group(0)
-            elif re.match("Invalid input:", line):
-                self.invalid_cache.add(inputs)
-                return "Invalid input"
-            elif match := re.match("error_[0-9]+", line):
-                tmp = match.group(0)
-                self.error_cache[" ".join(inputs)] = tmp
-                return tmp
+            if len(line) > 0:
+                if match := re.match("[0-9]+$", line):
+                    result = match.group(0)
+                elif re.match("Invalid input:", line):
+                    #self.invalid_cache.add(inputs[0:idx + 1])
+                    result = "Invalid input"
+                elif match := re.match("error_[0-9]+", line):
+                    tmp = match.group(0)
+                    self.error_cache[" ".join(inputs)] = tmp
+                    return tmp
+
+                if "error" not in output_lines[idx + 1]:
+                    self.cache[inputs[0:idx + 1]] = result
 
         self.cache[inputs] = result
         return result
@@ -49,23 +53,23 @@ class RERSConnectorV2(SUL):
         # Check if the input is already in cache
         if inputs in self.cache.keys():
             self.needs_reset = False
-            print("[Cache hit]", inputs)
+            #print("[Cache hit]", inputs)
             return self.cache[inputs]
 
         # Check prefixes
         if inputs in self.invalid_cache:
-            print("[Invalid]", inputs)
+            #print("[Invalid]", inputs)
             return "Invalid input"
 
         # We need a string representing the input, actions separated with a space
         inputs_string = " ".join(inputs)
         prefix, value = self.error_cache.shortest_prefix(inputs_string)
         if prefix is not None:
-            print("[Known Error]", inputs)
+            #print("[Known Error]", inputs)
             return value
 
         # If no cache hit, actually send the input to the SUT
-        print("[Query]", inputs)
+        #print("[Query]", inputs)
         return self._interact(inputs)
 
     def reset(self):

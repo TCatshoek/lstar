@@ -18,8 +18,8 @@ sm = RERSConnectorV2('rers/TrainingSeqReachRers2019/Problem12/Problem12')
 
 # We are using the brute force equivalence checker
 #eqc = BFEquivalenceChecker(sm, max_depth=15)
-eqc = WmethodEquivalenceChecker(sm, m=10, overshoot=6)
-#eqc = RandomWalkEquivalenceChecker(sm, max_depth=30, num_samples=100000)
+eqc = WmethodEquivalenceChecker(sm, m=10, overshoot=4)
+#eqc = RandomWalkEquivalenceChecker(sm, max_depth=10, num_samples=1000)
 
 # Set up the teacher, with the system under learning and the equivalence checker
 teacher = Teacher(sm, eqc)
@@ -30,6 +30,12 @@ learner = MealyLearner(teacher)
 # Get the learners hypothesis
 hyp = learner.run(show_intermediate=True)
 
+import pickle
+pickle.dump(hyp, open('hyp.p', 'wb'))
+
 print("SUCCES", check_result(hyp, 'rers/TrainingSeqReachRers2019/Problem12/reachability-solution-Problem12.csv'))
+
+# from util.transitioncover import get_non_crashing_cover_set, save_cover_set
+# save_cover_set(get_non_crashing_cover_set(hyp), 'test')
 
 hyp.render_graph(tempfile.mktemp('.gv'))

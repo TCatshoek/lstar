@@ -1,6 +1,7 @@
 import tempfile
 from collections import deque
 from suls.mealymachine import MealyMachine, MealyState
+from pathlib import Path
 
 def get_state_cover_set(fsm):
     alphabet = fsm.get_alphabet()
@@ -30,6 +31,29 @@ def get_state_cover_set(fsm):
                     to_visit.append((cur_path + (a,), next_state))
 
     return set(paths)
+
+def get_non_crashing_cover_set(fsm: MealyMachine):
+    scs = get_state_cover_set(fsm)
+    non_crashing = set()
+    for seq in scs:
+        fsm.reset()
+        output = fsm.process_input(seq)
+        if (output is not None) and ("error" not in output):
+            non_crashing.add(seq)
+    return non_crashing
+
+# Saves a cover set to separate files for feeding to afl
+def save_cover_set(cs, path):
+    p = Path(path)
+    assert p.is_dir(), f"{path} is not a directory"
+
+    for idx, seq in enumerate(cs):
+        q = p / f'{idx}.txt'
+        with q.open('w') as f:
+            for a in seq:
+                f.write(f'{a} ')
+            f.write('0')
+
 
 
 # Do we need state cover or transition cover??

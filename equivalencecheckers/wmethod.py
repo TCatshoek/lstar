@@ -9,8 +9,10 @@ from suls.mealymachine import MealyMachine, MealyState
 from suls.sul import SUL
 from typing import Union
 from itertools import product, chain
+from tqdm import tqdm
 
 # Implements chow's W-method for equivalence checking
+# Kinda horrible because it precalculates all inputs first and that's really costly
 class WmethodEquivalenceChecker(EquivalenceChecker):
     def __init__(self, sul: SUL, m=5, overshoot=0):
         super().__init__(sul)
@@ -50,7 +52,7 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
         # Apply the test sequences to the SUTs and compare
         equivalent = True
         counterexample = None
-        for sequence in sorted(test_sequences, key=len):
+        for sequence in tqdm(test_sequences):
             fsm.reset()
             hyp_output = fsm.process_input(sequence)
             self.sul.reset()

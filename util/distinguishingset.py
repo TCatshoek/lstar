@@ -72,6 +72,7 @@ def get_distinguishing_set(fsm: MealyMachine):
 
 # TODO: non-recursive implementation
 def buildTree(node: PTreeNode, alphabet, seen=list()):
+    print(node.prev_input)
     if node.is_leaf():
         return
 
@@ -91,6 +92,9 @@ def buildTree(node: PTreeNode, alphabet, seen=list()):
             # Assign states to nodes according to their responses
             for state in curpartition.states:
                 nextstate, response = state.next(a)
+
+                if nextstate is state:
+                    continue
 
                 if response not in new_node.partitions.keys():
                     new_node.partitions[response] = Partition()
@@ -200,75 +204,30 @@ def _trace(initial: MealyState, path):
     return cur_state
 
 if __name__ == '__main__':
-    # Set up an example mealy machine
-    # s1 = MealyState('1')
-    # s2 = MealyState('2')
-    # s3 = MealyState('3')
-    # # s4 = MealyState('4')
-    #
-    # s1.add_edge('a', 'nice', s2)
-    # s1.add_edge('b', 'B', s1)
-    # s2.add_edge('a', 'nice', s3)
-    # s2.add_edge('b', 'back', s1)
-    # s3.add_edge('a', 'A', s3)
-    # s3.add_edge('b', 'back', s1)
-    # # s4.add_edge('a', 'loop', s4)
-    # # s4.add_edge('b', 'loop', s4)
-    #
-    # mm = MealyMachine(s1)
+    import pickle
 
-    # # Set up an example mealy machine
-    s1 = MealyState('1')
-    s2 = MealyState('2')
-    s3 = MealyState('3')
-    s4 = MealyState('4')
-    s5 = MealyState('5')
+    hyp: MealyMachine = pickle.load(open('../hyp.p', 'rb'))
 
-    s1.add_edge('a', 'nice', s2)
-    s1.add_edge('b', 'nice', s3)
-
-    s2.add_edge('a', 'nice!', s4)
-    s2.add_edge('b', 'back', s1)
-
-    s3.add_edge('a', 'nice', s4)
-    s3.add_edge('b', 'back', s1)
-
-    s4.add_edge('a', 'nice', s5)
-    s4.add_edge('b', 'nice', s5)
-
-    s5.add_edge('a', 'loop', s5)
-    s5.add_edge('b', 'loop', s5)
-
-    # s1.add_edge('a', 'a', s2)
-    # s1.add_edge('b', 'b', s3)
-    #
-    # s2.add_edge('a', 'a', s4)
-    # s2.add_edge('b', 'b', s4)
-    #
-    # s3.add_edge('a', 'a', s5)
-    # s3.add_edge('b', 'b', s5)
-    #
-    # s4.add_edge('a', 'nice!', s4)
-    # s4.add_edge('b', 'nice!', s4)
-    #
-    # s5.add_edge('a', 'loop', s5)
-    # s5.add_edge('b', 'loop', s5)
-
-
-    mm = MealyMachine(s1)
-
-    dset = get_distinguishing_set(mm)
+    dset = get_distinguishing_set(hyp)
 
     #dset = walkTree2(tree, mm.get_states())
 
     print(dset)
 
-    states = [s1, s2, s3, s4, s5]
+    states = hyp.get_states()
+    outputs = {}
     for state in states:
         mm = MealyMachine(state)
-        print(state)
+        out = []
         for dseq in dset:
-            print([mm.process_input(x) for x in dseq][-1])
+            out.append(mm.process_input(dseq))
             mm.reset()
+        outputs[state] = tuple(out.copy())
+        out = []
+
+    if len(set(outputs)) < len(outputs):
+        print(outputs, "Not unique")
+
+
 
     #drawTree(tree)
