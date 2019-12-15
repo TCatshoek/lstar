@@ -10,6 +10,8 @@ from suls.sul import SUL
 from typing import Union
 from itertools import product, chain
 from tqdm import tqdm
+from suls.rersconnectorv2 import RERSConnectorV2
+from collections import deque
 
 # Implements chow's W-method for equivalence checking
 # Kinda horrible because it precalculates all inputs first and that's really costly
@@ -65,6 +67,67 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
 
         return equivalent, counterexample
 
+
+# Wmethod-ish eq checker with RERS-specific optimizations
+class RersWmethodEquivalenceChecker(EquivalenceChecker):
+    def __init__(self, sul: RERSConnectorV2, m=5):
+        super().__init__(sul)
+        self.m = m
+
+    def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
+        print("[info] Starting equivalence test")
+        # Don't bother with the distinguishing set for now
+        #W = get_distinguishing_set(fsm)
+
+        P = get_state_cover_set(fsm)
+        print("[info] Got state cover set")
+        A = sorted([(x,) for x in fsm.get_alphabet()])
+
+        equivalent = True
+        counterexample = None
+
+        for access_sequence in sorted(P, key=len):
+            #print("[info] Trying access sequence:", access_sequence)
+            to_visit = deque()
+            to_visit.extend(A)
+
+            while len(to_visit) > 0:
+                cur = to_visit.popleft()
+                #print(cur)
+                # Check cache if this is invalid input
+                if access_sequence + cur in self.sul.invalid_cache:
+                    continue
+
+                # Check cache if this is a known error
+                prefix, value = self.sul.error_cache.shortest_prefix(" ".join([str(x) for x in access_sequence + cur]))
+                if prefix is not None:
+                    continue
+
+                # If the test is of sufficient length, execute it
+                #if len(cur) == self.m:
+                print("[Testing]", access_sequence + cur)
+                equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur)
+                if not equivalent:
+                    return equivalent, counterexample
+
+                # If not, keep building
+                #else:
+                if len(cur) < self.m:
+                    for a in A:
+                        if access_sequence + cur + a not in self.sul.invalid_cache:
+                            to_visit.append(cur + a)
+
+        return equivalent, counterexample
+
+    # Todo: fix this so it compares the whole output sequence instead of just the last output
+    def _are_equivalent(self, fsm, input):
+        fsm.reset()
+        hyp_output = fsm.process_input(input)
+        self.sul.reset()
+        sul_output = self.sul.process_input(input)
+        print(sul_output)
+
+        return hyp_output == sul_output, input
 
 if __name__ == "__main__":
     s1 = MealyState('1')

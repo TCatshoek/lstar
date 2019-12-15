@@ -1,6 +1,6 @@
 import tempfile
 
-from equivalencecheckers.wmethod import WmethodEquivalenceChecker
+from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker
 from learners.dfalearner import DFALearner
 from equivalencecheckers.randomwalk import RandomWalkEquivalenceChecker
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
@@ -18,7 +18,7 @@ sm = RERSConnectorV2('rers/TrainingSeqReachRers2019/Problem12/Problem12')
 
 # We are using the brute force equivalence checker
 #eqc = BFEquivalenceChecker(sm, max_depth=15)
-eqc = WmethodEquivalenceChecker(sm, m=10, overshoot=4)
+eqc = RersWmethodEquivalenceChecker(sm, m=10)
 #eqc = RandomWalkEquivalenceChecker(sm, max_depth=10, num_samples=1000)
 
 # Set up the teacher, with the system under learning and the equivalence checker
