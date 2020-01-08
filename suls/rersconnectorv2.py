@@ -74,7 +74,7 @@ class RERSConnectorV2(SUL):
                     result = match.group(0)
                 elif re.match("Invalid input:", line):
                     self.invalid_cache.add(inputs[0:idx + 1])
-                    result = "Invalid input"
+                    result = "invalid_input"
                 elif match := re.match("error_[0-9]+", line):
                     tmp = match.group(0)
                     self.error_cache[" ".join(inputs)] = tmp
@@ -105,7 +105,7 @@ class RERSConnectorV2(SUL):
         # Check prefixes
         # if inputs in self.invalid_cache:
         #     #print("[Invalid]", inputs)
-        #     return "Invalid input"
+        #     return "invalid_input"
 
         # We need a string representing the input, actions separated with a space
         inputs_string = " ".join(inputs)

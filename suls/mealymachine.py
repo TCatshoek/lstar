@@ -95,7 +95,7 @@ class MealyMachine(SUL):
                 last_output = output
             except Exception as e:
                 #print(e)
-                return "Invalid input"
+                return "invalid_input"
 
         return last_output
 

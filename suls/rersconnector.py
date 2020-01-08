@@ -239,7 +239,7 @@ class StringRERSConnector(RERSConnector):
 
             # We have an invalid input
             elif index == 1:
-                result = "Invalid Input"
+                result = "invalid_input"
                 print("[ERROR]", self.p.match.group(0))
                 self.invalid_prefixes[inputs] = result
                 self.cache[inputs] = result
