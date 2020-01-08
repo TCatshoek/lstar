@@ -3,9 +3,13 @@ import pexpect
 from subprocess import check_output, CalledProcessError, STDOUT
 import re
 import pygtrie
+import hashlib
+from pathlib import Path
+import pickle
+import os
 
 class RERSConnectorV2(SUL):
-    def __init__(self, path_to_binary, terminator="0"):
+    def __init__(self, path_to_binary, path_to_cache=None, save_every_n=1000, terminator="0"):
         self.path = path_to_binary
         self.needs_reset = True
         self.cache = {}
@@ -14,6 +18,43 @@ class RERSConnectorV2(SUL):
 
         self.terminator = terminator
         assert terminator not in self.get_alphabet(), f"Terminator {terminator} in alphabet, please choose a different one"
+
+        # Save cache to file every n queries
+        self.save_every_n = save_every_n
+        self.n_queries = 0
+
+        if path_to_cache is None:
+            print("No cache path given, not using cache")
+            self.cachepath = None
+        else:
+            print("Cache dir:", str(Path(path_to_cache).absolute()))
+            # Hash the binary to find it's cache folder
+            with open(self.path, 'rb') as f:
+                hash = hashlib.sha256(f.read()).hexdigest()
+
+            # Check if cache exists for the given binary
+            self.cachepath = Path(path_to_cache).joinpath(hash)
+            if self.cachepath.is_dir():
+                self._load_cache()
+            else:
+                os.mkdir(self.cachepath)
+
+    def _load_cache(self):
+        with self.cachepath.joinpath('cache').open('rb') as f:
+            self.cache = pickle.load(f)
+        with self.cachepath.joinpath('error_cache').open('rb') as f:
+            self.error_cache = pickle.load(f)
+        with self.cachepath.joinpath('invalid_cache').open('rb') as f:
+            self.invalid_cache = pickle.load(f)
+
+    def _save_cache(self):
+        print("Saving cache to file...")
+        with self.cachepath.joinpath('cache').open('wb') as f:
+            pickle.dump(self.cache, f)
+        with self.cachepath.joinpath('error_cache').open('wb') as f:
+            pickle.dump(self.error_cache, f)
+        with self.cachepath.joinpath('invalid_cache').open('wb') as f:
+            pickle.dump(self.invalid_cache, f)
 
     def _interact(self, inputs):
         try:
@@ -43,6 +84,11 @@ class RERSConnectorV2(SUL):
                     self.cache[inputs[0:idx + 1]] = result
 
         self.cache[inputs] = result
+
+        self.n_queries += 1
+        if self.n_queries % self.save_every_n == 0:
+            self._save_cache()
+
         return result
 
 
