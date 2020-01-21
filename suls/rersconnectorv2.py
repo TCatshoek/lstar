@@ -48,6 +48,9 @@ class RERSConnectorV2(SUL):
             self.invalid_cache = pickle.load(f)
 
     def _save_cache(self):
+        if self.cachepath == None:
+            return
+
         print("Saving cache to file...")
         with self.cachepath.joinpath('cache').open('wb') as f:
             pickle.dump(self.cache, f)
