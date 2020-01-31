@@ -8,17 +8,15 @@ __setitem__ __setslice__ __delitem__ update append extend
  symmetric_difference_update update
  """.split())
 
+# Keeps track of changes
 class _NotifierSet(set):
     def __init__(self, seq=()):
         super().__init__(seq)
 
-        self.has_changed = False
+        self.change_counter = 0
 
-    def clear_changed(self):
-        self.has_changed = False
-
-    def set_changed(self):
-        self.has_changed = True
+    def on_changed(self):
+        self.change_counter += 1
 
 def decorator(func, callback):
     def wrapper(*args, **kw):
@@ -30,14 +28,12 @@ def decorator(func, callback):
 new_dct = _NotifierSet.__dict__.copy()
 for k, v in set.__dict__.items():
     if k in changer_methods:
-        new_dct[k] = decorator(v, _NotifierSet.set_changed)
+        new_dct[k] = decorator(v, _NotifierSet.on_changed)
 
 NotifierSet = type("NotifierSet", (_NotifierSet,), new_dct)
 
 if __name__ == "__main__":
     a = NotifierSet()
-    print(a.has_changed)
+    print(a.change_counter)
     a.add(1)
-    print(a.has_changed)
-    a.clear_changed()
-    print(a.has_changed)
+    print(a.change_counter)
