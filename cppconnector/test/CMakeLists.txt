@@ -9,6 +9,9 @@ include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR} ../src)
 # 'test1.cpp tests2.cpp' are source files with tests
 add_executable(Google_Tests_run
         test_trie.cpp
+        test_connector.cpp
+        ../src/RERSConnectorV3.h
+        ../src/RERSConnectorV3.cpp
         ../src/Trie.cpp
         ../src/Trie.h
         )

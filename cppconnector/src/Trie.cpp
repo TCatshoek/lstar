@@ -5,59 +5,74 @@
 
 #include "Trie.h"
 
-Trie::Trie(std::vector<std::string> alphabet, char separator=' '):
+Trie::Trie(std::vector<std::string> alphabet, char separator):
     alphabet(alphabet),
     alphabetsize(alphabet.size()),
-    separator(separator){
+    separator(std::string(&separator)){
 
     root = std::make_unique<TrieNode>(alphabetsize);
 }
 
+Trie::Trie(std::vector<std::string> alphabet, std::string separator):
+    alphabet(alphabet),
+    alphabetsize(alphabet.size()),
+    separator(std::move(separator)){
+
+    root = std::make_unique<TrieNode>(alphabetsize);
+}
+
+void Trie::tokenize(char* string) {
+    char* pch;
+    pch = strtok(string, separator.c_str());
+
+    uint bufidx = 0;
+    while (pch != NULL) {
+        tokbuf[bufidx] = pch;
+        pch = strtok(NULL, separator.c_str());
+        bufidx++;
+    }
+    n_toks = bufidx;
+}
+
+
 void Trie::put(const std::string &key, const std::string &value) {
     // Tokenize key
-    std::vector<std::string> tokens;
-    std::stringstream s(key);
-
-    std::string token;
-
-    while (std::getline(s, token, separator)) {
-        tokens.push_back(token);
-    }
+    tokenize(&key[0]);
 
     // Start at root node
     TrieNode* cur_node = root.get();
 
-    for (uint i = 0; i < tokens.size(); i++) {
-        token = tokens[i];
+    for (uint i = 0; i < n_toks; i++) {
+        std::string_view token(tokbuf[i]);
 
         // Look up the alphabet index of this token and grab the pointer to the next node
         int aidx = getAlphabetIdx(token);
-        std::unique_ptr<TrieNode>& next_node = cur_node->children[aidx];
+        TrieNode* next_node = cur_node->children[aidx];
 
         // If node does not exits yet, create it
         if (!next_node) {
-            next_node = std::make_unique<TrieNode>(alphabetsize);
+            next_node = new TrieNode(alphabetsize);
         }
 
         // If we reached the end of the tokens, store the value
-        if (i == tokens.size() - 1) {
+        if (i == n_toks - 1) {
             next_node->value = value;
             return;
         }
         // Else, continue traversing the tree
         else {
-            cur_node = next_node.get();
+            cur_node = next_node;
         }
     }
 }
 
-int Trie::getAlphabetIdx(std::string a) {
+int Trie::getAlphabetIdx(const std::string_view &a) {
     for (uint i = 0; i < alphabetsize; i++) {
         if (a == alphabet[i]) {
             return i;
         }
     }
-    throw std::runtime_error(a + " not in alphabet");
+    throw std::runtime_error(std::string(a) + " not in alphabet");
 }
 
 std::string Trie::get(const std::string &key) {
@@ -67,7 +82,7 @@ std::string Trie::get(const std::string &key) {
 
     std::string token;
 
-    while (std::getline(s, token, separator)) {
+    while (std::getline(s, token, separator[0])) {
         tokens.push_back(token);
     }
 
@@ -78,8 +93,8 @@ std::string Trie::get(const std::string &key) {
         token = tokens[i];
 
         // Look up the alphabet index of this token and grab the pointer to the next node
-        int aidx = getAlphabetIdx(token);
-        std::unique_ptr<TrieNode>& next_node = cur_node->children[aidx];
+        int aidx = getAlphabetIdx(std::string_view(token));
+        TrieNode* next_node = cur_node->children[aidx];
 
         // If node does not exist, return empty string
         if (!next_node) {
@@ -91,8 +106,11 @@ std::string Trie::get(const std::string &key) {
         }
         // Else, continue traversing the tree
         else {
-            cur_node = next_node.get();
+            cur_node = next_node;
         }
     }
 }
+
+
+
 

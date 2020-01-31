@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.12)
 project(connector)
 
+set(CMAKE_CXX_FLAGS "-O3 -fpermissive")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # Build the python bindings
 add_subdirectory(pybind11)
 pybind11_add_module(connector

@@ -3,75 +3,16 @@
 //
 
 #include "gtest/gtest.h"
-#include "Trie.h"
+#include "RERSConnectorV3.h"
 #include <vector>
 #include <stdlib.h>
 #include <time.h>
 #include <chrono>
 
-TEST(Trie, simpleadd){
-    std::vector<std::string> alphabet = {"a", "b", "c"};
-    Trie t = Trie(alphabet, ' ');
-
-    t.put("a", "yay!");
-
-    std::string out = t.get("a");
-
-    ASSERT_EQ(out, "yay!");
-}
-
-TEST(Trie, simpleadd2){
-    std::vector<std::string> alphabet = {"a", "b", "c"};
-    Trie t = Trie(alphabet, ' ');
-
-    t.put("a a a a a", "yay!");
-
-    std::string out = t.get("a a a a a");
-    ASSERT_EQ(out, "yay!");
-    out = t.get("a a a a");
-    ASSERT_NE(out, "yay!");
-}
-
-TEST(Trie, simpleadd3){
-    std::vector<std::string> alphabet = {"a", "b", "c"};
-    Trie t = Trie(alphabet, ' ');
-
-    t.put("a b c a b c", "yay!");
-
-    std::string out = t.get("a b c a b c");
-
-    ASSERT_EQ(out, "yay!");
-}
-
-TEST(Trie, miss){
-    std::vector<std::string> alphabet = {"a", "b", "c"};
-    Trie t = Trie(alphabet, ' ');
-
-    std::string out = t.get("a a a a a");
-    ASSERT_EQ(out, "");
-}
-
-TEST(Trie, wathappenwhenoutsidealphabet){
-    std::vector<std::string> alphabet = {"a", "b", "c"};
-    Trie t = Trie(alphabet, ' ');
-
-    EXPECT_THROW({
-         try{
-             std::string out = t.get("d");
-         }
-         catch( const std::runtime_error& e ) {
-             EXPECT_STREQ("d not in alphabet", e.what());
-             throw;
-         }
-    }, std::exception);
-}
-
-
 using namespace std::chrono;
 
 TEST(Trie, time){
-    std::vector<std::string> alphabet = {"a", "b", "c"};
-    Trie t = Trie(alphabet, ' ');
+    std::vector<std::string> alphabet = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
 
     srand(time(NULL));
 
@@ -89,10 +30,7 @@ TEST(Trie, time){
         keys.push_back(tmp);
     }
 
-    std::string a = "a";
-    for (std::string key : keys) {
-        t.put(key, a);
-    }
+    RERSConnectorV3 r("/home/tom/projects/lstar/rers/TrainingSeqReachRers2019/Problem11/Problem11");
 
 
     milliseconds start = duration_cast< milliseconds >(
