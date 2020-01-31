@@ -70,9 +70,10 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
 
 # Wmethod-ish eq checker with RERS-specific optimizations
 class RersWmethodEquivalenceChecker(EquivalenceChecker):
-    def __init__(self, sul: RERSConnectorV2, m=5):
+    def __init__(self, sul: RERSConnectorV2, longest_first=False, m=5):
         super().__init__(sul)
         self.m = m
+        self.longest_first = longest_first
 
     def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
         print("[info] Starting equivalence test")
@@ -86,7 +87,7 @@ class RersWmethodEquivalenceChecker(EquivalenceChecker):
         equivalent = True
         counterexample = None
 
-        for access_sequence in sorted(P, key=len):
+        for access_sequence in sorted(P, key=len, reverse=self.longest_first):
             #print("[info] Trying access sequence:", access_sequence)
             to_visit = deque()
             to_visit.extend(A)
@@ -101,6 +102,10 @@ class RersWmethodEquivalenceChecker(EquivalenceChecker):
                 # Check cache if this is a known error
                 prefix, value = self.sul.error_cache.shortest_prefix(" ".join([str(x) for x in access_sequence + cur]))
                 if prefix is not None:
+                    # Do check it tho
+                    equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur)
+                    if not equivalent:
+                        return equivalent, counterexample
                     continue
 
                 # If the test is of sufficient length, execute it
