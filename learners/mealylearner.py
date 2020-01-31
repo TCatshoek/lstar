@@ -6,6 +6,62 @@ from learners.learner import Learner
 from teachers.teacher import Teacher
 from typing import Set, Tuple, Dict
 from tabulate import tabulate
+from util.changewrapper import NotifierSet
+from collections import namedtuple
+from pathlib import Path
+import random
+import string
+from datetime import datetime
+import pickle
+
+ChangeCounterPair = namedtuple('Mem', 'S E')
+
+# Memoization decorator
+def depends_on_S(func):
+    def wrapper(*args):
+
+        self = args[0]
+        change_counter = self.S.change_counter
+
+        try:
+            last_seen = self._watch[func.__name__]
+        except KeyError:
+            self._watch[func.__name__] = 0
+            last_seen = 0
+
+        if last_seen != change_counter:
+            tmp = func(*args)
+            self._mem[func.__name__] = tmp
+            self._watch[func.__name__] = change_counter
+            return tmp
+        else:
+            return self._mem[func.__name__]
+
+    return wrapper
+
+# Memoization decorator
+def depends_on_S_E(func):
+    def wrapper(*args):
+
+        self = args[0]
+        change_counter_S = self.S.change_counter
+        change_counter_E = self.E.change_counter
+
+        try:
+            last_seen_S, last_seen_E = self._watch[func.__name__]
+        except KeyError:
+            self._watch[func.__name__] = ChangeCounterPair(0, 0)
+            last_seen_S, last_seen_E = 0, 0
+
+        if (last_seen_S != change_counter_S) or (last_seen_E != change_counter_E):
+            tmp = func
+            self._mem[func.__name__] = tmp
+            self._watch[func.__name__] = ChangeCounterPair(change_counter_S, change_counter_E)
+            return tmp
+        else:
+            return self._mem[func.__name__]
+
+    return wrapper
 
 # Implements the L* algorithm by Dana Angluin, modified for mealy machines as per
 # https://link.springer.com/chapter/10.1007%2F978-3-642-05089-3_14
@@ -14,8 +70,10 @@ class MealyLearner(Learner):
         super().__init__(teacher)
 
         # Observation table (S, E, T)
-        self.S = set()
-        self.E = set()
+        # NotifierSets raise a flag once they're modified
+        # This is used to avoid repeating expensive computations
+        self.S = NotifierSet()
+        self.E = NotifierSet()
 
         # S starts with the empty string
         self.S.add(tuple())
@@ -29,6 +87,50 @@ class MealyLearner(Learner):
         for a in self.A:
             self.E.add(a)
 
+        # Don't redo expensive computations unless necessary
+        self._mem = {}
+        self._watch = {}
+
+        # Checkpoints?
+        self._save_checkpoints = False
+        self._checkpointname = None
+        self._checkpointdir = None
+
+    def enable_checkpoints(self, dir, checkpointname=None):
+        # Try getting checkpoint name from SUL
+        if checkpointname is None:
+            try:
+                cpn = Path(self.teacher.sul.path).stem
+            except:
+                cpn = ''.join([random.choice(string.ascii_letters + string.digits) for n in range(6)])
+        else:
+            cpn = checkpointname
+
+        self._checkpointname = cpn
+        self._save_checkpoints = True
+
+        # Check if checkpoint dir exists
+        Path(f'{dir}/{cpn}').mkdir(parents=True, exist_ok=True)
+        self._checkpointdir = dir
+
+    def make_checkpoint(self):
+        state = {
+            "S": self.S,
+            "E": self.E,
+            "T": self.T
+        }
+
+        print("Making checkpoint...")
+        now = str(datetime.now()).replace(' ', '_').replace('.', ':')
+        with open(Path(self._checkpointdir).joinpath(self._checkpointname + '/' + now), 'wb') as f:
+            pickle.dump(state, f)
+
+    def load_checkpoint(self, path):
+        with open(path, 'rb') as f:
+            state = pickle.load(f)
+            for k, v in state.items():
+                self.__dict__[k] = v
+
     # Membership query
     def query(self, query):
         if query in self.T.keys():
@@ -39,10 +141,12 @@ class MealyLearner(Learner):
             return output
 
     # Calculates S·A
+    @depends_on_S
     def _SA(self):
         return set([tuple(chain.from_iterable(x)) for x in list(product(self.S, self.A))]).union(self.A)
 
     # Calculates S ∪ S·A
+    @depends_on_S
     def _SUSA(self) -> Set[Tuple]:
         SA = self._SA()
 
@@ -198,6 +302,9 @@ class MealyLearner(Learner):
         while not equivalent:
             while not (self._is_closed() and self._is_consistent()):
                 self.step()
+
+            if self._save_checkpoints:
+                self.make_checkpoint()
 
             # Are we equivalent?
             hypothesis = self.build_dfa()
