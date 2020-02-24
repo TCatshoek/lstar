@@ -63,7 +63,7 @@ class RERSConnectorV2(SUL):
     def _interact(self, inputs):
         try:
             a = check_output(
-                f'echo "{" ".join([str(x) for x in inputs])} 0" | {self.path}',
+                f'echo "{" ".join([str(x) for x in inputs])} {self.terminator}" | {self.path}',
                 stderr=STDOUT,
                 shell=True)
         except CalledProcessError as e:
@@ -208,7 +208,7 @@ async def main(n_queries):
 
 if __name__ == "__main__":
 
-    n = 10000
+    n = 1000
 
     #asyncio.run(main(n))
 
