@@ -52,7 +52,11 @@ class RERSConnectorV3(SUL):
 
     def _load_cache(self):
         with self.cachepath.joinpath('cache').open('rb') as f:
-            self.cache = pickle.load(f)
+            try:
+                self.cache = pickle.load(f)
+            except EOFError:
+                print("Error loading query cache")
+                self.cache = {}
         with self.cachepath.joinpath('error_cache').open('rb') as f:
             self.error_cache = pickle.load(f)
         with self.cachepath.joinpath('invalid_cache').open('rb') as f:
