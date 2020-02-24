@@ -172,6 +172,14 @@ class MealyLearner(Learner):
 
         return row
 
+    def _get_col(self, e: Tuple):
+        if e not in self.E:
+            raise Exception("e not in E")
+
+        col = [self.query(s + e) for s in self._SUSA()]
+
+        return col
+
     def _is_closed(self):
         is_closed = True
 
@@ -222,7 +230,15 @@ class MealyLearner(Learner):
         print(tabulate(rows + rows_sa, headers="firstrow",tablefmt="fancy_grid"))
 
     def step(self):
-        if not self._is_consistent():
+        consistent = self._is_consistent()
+        closed = self._is_closed()
+
+        print('Closed:', closed)
+        print('Consistent:', consistent)
+
+        break_consistent = False
+
+        if not consistent:
             # Gather equal rows
             eqrows = [(s1, s2) for (s1, s2) in combinations(self.S, 2) if self._get_row(s1) == self._get_row(s2)]
 
@@ -236,11 +252,16 @@ class MealyLearner(Learner):
                     if T_s1ae != T_s2ae:
                         print('Adding', self._tostr(a + e), 'to E')
                         self.E.add(a + e)
+                        break_consistent = True
+                        break
+
+                if break_consistent:
+                    break
 
             # Rebuild observation table
-            self.print_observationtable()
+            #self.print_observationtable()
 
-        if not self._is_closed():
+        if not closed:
             # Gather all rows in S
             S_rows = [self._get_row(s) for s in self.S]
 
@@ -251,10 +272,8 @@ class MealyLearner(Learner):
                 if row_sa not in S_rows:
                     self.S.add(s + a)
 
-            self.print_observationtable()
+            #self.print_observationtable()
 
-        print('Closed:', self._is_closed())
-        print('Consistent:', self._is_consistent())
 
     # Builds the hypothesised dfa using the currently available information
     def build_dfa(self):
