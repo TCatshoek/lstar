@@ -116,3 +116,13 @@ rers/TrainingSeqReachRers2019
 
 # cache files
 cache/
+checkpoints/
+
+# pickle files
+*.p
+
+# weird tab files
+lextab.py
+yacctab.py
+
+tmp
