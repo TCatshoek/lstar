@@ -17,6 +17,8 @@ from collections import Counter
 
 ChangeCounterPair = namedtuple('Mem', 'S E')
 
+threshold = 30
+
 # Memoization decorator
 def depends_on_S(func):
     def wrapper(*args):
@@ -207,7 +209,14 @@ class TSPLearner(Learner):
         S_rows = [self._get_row(s) for s in self.S]
 
         for t in self._SA():
-            is_closed &= self._get_row(t) in S_rows
+            row_sa = self._get_row(t)
+            print('row distances: ', [self.row_distance(row_sa, row_s) for row_s in S_rows])
+            tmp = min([self.row_distance(row_sa, row_s) for row_s in S_rows]) <= threshold
+            if not (tmp or row_sa in S_rows):
+                print("Not closed because: ", t)
+            else:
+                print("OK:", t)
+            is_closed &= tmp or row_sa in S_rows
 
         return is_closed
 
@@ -292,11 +301,22 @@ class TSPLearner(Learner):
             for (s, a) in SA:
                 if self._is_valid(s + a):
                     row_sa = self._get_row(s + a)
-                    if row_sa not in S_rows:
+                    # if row_sa not in S_rows:
+                    #     self.S.add(s + a)
+
+                    #Compare row to all rows in S
+                    row_dists = [self.row_distance(row_s, row_sa) for row_s in S_rows]
+                    if max(row_dists) > threshold:
+                        print('adding', s + a)
                         self.S.add(s + a)
 
         self.print_observationtable()
 
+    def row_distance(self, row1, row2):
+        dists = []
+        for (a, b) in zip(row1, row2):
+                dists.append(abs(float(a) - float(b)))
+        return max(dists)
 
     # Builds the hypothesised dfa using the currently available information
     def build_dfa(self):
@@ -367,10 +387,11 @@ class TSPLearner(Learner):
             hypothesis.reset()
             print('Model output:', hypothesis.process_input(counterexample))
             print('Actual output:', self.query(counterexample))
-
+            #self.print_observationtable()
             # if not, add counterexample and prefixes to S
-            for i in range(1, len(counterexample)):
+            for i in range(1, len(counterexample) + 1):
                 self.S.add(counterexample[0:i])
+
 
 
 
