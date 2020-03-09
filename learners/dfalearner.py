@@ -214,11 +214,8 @@ class DFALearner(Learner):
             print('COUNTEREXAMPLE', counterexample)
 
             # if not, add counterexample and prefixes to S
-            for i in range(1, len(counterexample)):
+            for i in range(1, len(counterexample) + 1):
                 self.S.add(counterexample[0:i])
-
-
-
 
 
 if __name__ == "__main__":
