@@ -340,9 +340,12 @@ class MealyLearner(Learner):
                 return hypothesis
 
             print('COUNTEREXAMPLE', counterexample)
+            hypothesis.reset()
+            print('Model output:', hypothesis.process_input(counterexample))
+            print('Actual output:', self.query(counterexample))
 
             # if not, add counterexample and prefixes to S
-            for i in range(1, len(counterexample)):
+            for i in range(1, len(counterexample) + 1):
                 self.S.add(counterexample[0:i])
 
 
