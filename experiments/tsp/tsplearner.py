@@ -343,7 +343,7 @@ class TSPLearner(Learner):
         equivalent = False
 
         while not equivalent:
-            while not (self._is_closed() and self._is_consistent()):
+            if not (self._is_closed() and self._is_consistent()):
                 self.step()
 
             if self._save_checkpoints:

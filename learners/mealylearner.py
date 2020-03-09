@@ -272,7 +272,7 @@ class MealyLearner(Learner):
                 if row_sa not in S_rows:
                     self.S.add(s + a)
 
-            #self.print_observationtable()
+        self.print_observationtable()
 
 
     # Builds the hypothesised dfa using the currently available information
