@@ -8,6 +8,7 @@ import hashlib
 from pathlib import Path
 import pickle
 import os
+import sys
 
 class RERSConnectorV3(SUL):
     def __init__(self, path_to_binary, path_to_cache=None, save_every_n=100000):
@@ -144,7 +145,8 @@ class RERSConnectorV3(SUL):
             return value
 
         # If no cache hit, actually send the input to the SUT
-        #print("[Query]", inputs)
+        print(f"\r[Query] {inputs}", end="", flush=True)
+        sys.stdout.flush()
         return self._interact(inputs)
 
     def reset(self):

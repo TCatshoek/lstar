@@ -136,3 +136,6 @@ class MealyMachine(SUL):
 
         g.view()
 
+
+def MakeRandomMealyMachine(n_states, A):
+    pass#states =
