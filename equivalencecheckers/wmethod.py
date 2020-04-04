@@ -110,7 +110,7 @@ class RersWmethodEquivalenceChecker(EquivalenceChecker):
 
                 # If the test is of sufficient length, execute it
                 #if len(cur) == self.m:
-                print("[Testing]", access_sequence + cur)
+                #print("[Testing]", access_sequence + cur)
                 equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur)
                 if not equivalent:
                     return equivalent, counterexample
@@ -123,16 +123,6 @@ class RersWmethodEquivalenceChecker(EquivalenceChecker):
                             to_visit.append(cur + a)
 
         return equivalent, counterexample
-
-    # Todo: fix this so it compares the whole output sequence instead of just the last output
-    def _are_equivalent(self, fsm, input):
-        fsm.reset()
-        hyp_output = fsm.process_input(input)
-        self.sul.reset()
-        sul_output = self.sul.process_input(input)
-        print(sul_output)
-
-        return hyp_output == sul_output, input
 
     # Wmethod-ish eq checker with RERS-specific optimizations
     class AsyncRersWmethodEquivalenceChecker(EquivalenceChecker):
@@ -185,16 +175,6 @@ class RersWmethodEquivalenceChecker(EquivalenceChecker):
                                 to_visit.append(cur + a)
 
             return equivalent, counterexample
-
-        # Todo: fix this so it compares the whole output sequence instead of just the last output
-        def _are_equivalent(self, fsm, input):
-            fsm.reset()
-            hyp_output = fsm.process_input(input)
-            self.sul.reset()
-            sul_output = self.sul.process_input(input)
-            print(sul_output)
-
-            return hyp_output == sul_output, input
 
 if __name__ == "__main__":
     s1 = MealyState('1')
