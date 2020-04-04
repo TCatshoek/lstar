@@ -50,18 +50,35 @@ def depends_on_S_E(func):
         try:
             last_seen_S, last_seen_E = self._watch[func.__name__]
         except KeyError:
-            self._watch[func.__name__] = ChangeCounterPair(0, 0)
-            last_seen_S, last_seen_E = 0, 0
+            self._watch[func.__name__] = ChangeCounterPair(-1, -1)
+            last_seen_S, last_seen_E = -1, -1
 
         if (last_seen_S != change_counter_S) or (last_seen_E != change_counter_E):
-            tmp = func
-            self._mem[func.__name__] = tmp
+            # If S or E changed, Invalidate memory
+            self._mem[func.__name__] = {}
             self._watch[func.__name__] = ChangeCounterPair(change_counter_S, change_counter_E)
-            return tmp
+
+        if args in self._mem[func.__name__].keys():
+            return self._mem[func.__name__][args]
         else:
-            return self._mem[func.__name__]
+            tmp = func(*args)
+            self._mem[func.__name__][args] = tmp
+            return tmp
 
     return wrapper
+
+
+# Generic memoization decorator
+def memoize(f):
+    memo = {}
+
+    def wrapper(*args):
+        if args not in memo:
+            memo[args] = f(*args)
+        return memo[args]
+
+    return wrapper
+
 
 # Implements the L* algorithm by Dana Angluin, modified for mealy machines as per
 # https://link.springer.com/chapter/10.1007%2F978-3-642-05089-3_14
@@ -160,10 +177,12 @@ class MealyLearner(Learner):
         else:
             return reduce(lambda x, y: str(x) + ',' + str(y), actionlist)
 
+    @memoize
     def _rebuildquery(self, strquery):
         return tuple(filter(lambda x: x != 'λ', strquery.split(',')))
 
     # row(s), s in S ∪ S·A
+    @depends_on_S_E
     def _get_row(self, s: Tuple):
         if s not in self._SUSA():
             raise Exception("s not in S ∪ S·A")
@@ -180,6 +199,7 @@ class MealyLearner(Learner):
 
         return col
 
+    @depends_on_S_E
     def _is_closed(self):
         is_closed = True
 
@@ -190,6 +210,7 @@ class MealyLearner(Learner):
 
         return is_closed
 
+    @depends_on_S_E
     def _is_consistent(self):
         is_consistent = True
 
@@ -207,6 +228,9 @@ class MealyLearner(Learner):
         return is_consistent
 
     def print_observationtable(self):
+        # Screw this
+        return
+
         rows = []
 
         S = sorted([self._tostr(a) for a in list(self.S)])
@@ -271,6 +295,7 @@ class MealyLearner(Learner):
                 row_sa = self._get_row(s + a)
                 if row_sa not in S_rows:
                     self.S.add(s + a)
+                    #break
 
         self.print_observationtable()
 
