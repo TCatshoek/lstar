@@ -1,13 +1,17 @@
 import tempfile
 
+from graphviz import Digraph
+
+from equivalencecheckers.equivalencechecker import EquivalenceChecker
 from suls.dfa import DFA, State
 from itertools import product, chain, combinations
 from functools import reduce
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.learner import Learner
+from suls.sul import SUL
 
 from teachers.teacher import Teacher
-from typing import Set, Tuple
+from typing import Set, Tuple, Optional, Iterable
 from tabulate import tabulate
 
 
@@ -81,6 +85,33 @@ class DTree:
     def getLeaf(self, state):
         return list(filter(lambda x: x.isLeaf and x.state == state, self.nodes.values()))[0]
 
+    def render_graph(self, filename):
+        g = Digraph('G', filename=filename)
+        #g.attr(rankdir='LR')
+
+        for node in self.nodes.values():
+            if not node.isLeaf:
+                name = "".join(node.suffix) if len(node.suffix) > 0 else 'ε'
+                if node.temporary:
+                    g.node(name, style='dotted')
+                else:
+                    g.node(name)
+            else:
+                g.node(node.state.name, shape='rect')
+
+        for node in self.nodes.values():
+            if node.isLeaf:
+                continue
+            name = "".join(node.suffix) if len(node.suffix) > 0 else 'ε'
+            if node._true is not None:
+                target = node._true.state.name if node._true.isLeaf else "".join(node._true.suffix)
+                g.edge(name, target, label='T')
+            if node._false is not None:
+                target = node._false.state.name if node._false.isLeaf else "".join(node._false.suffix)
+                g.edge(name, target, label='F', style='dotted')
+
+        g.view()
+
 
 # Implements the TTT algorithm
 class TTTDFALearner(Learner):
@@ -143,6 +174,7 @@ class TTTDFALearner(Learner):
         n = len(list(self.S.items()))
         items_added = True
 
+        # Todo: figure out a neater way to handle missing states during sifting than to just redo the whole thing
         while items_added:
             # Add transitions
             for access_seq, cur_state in list(self.S.items()):
@@ -359,12 +391,26 @@ class TTTDFALearner(Learner):
                 self.S.add(counterexample[0:i])
 
 
+class FakeEQChecker(EquivalenceChecker):
+
+    def __init__(self, sul):
+        super().__init__(sul)
+        self.count = 0
+
+    def test_equivalence(self, test_sul: SUL) -> Tuple[bool, Optional[Iterable]]:
+        if self.count == 0:
+            self.count += 1
+            return False, ('b', 'b', 'b', 'a', 'a', 'a', 'b', 'b')
+        else:
+            return True, None
+
+
 from suls.re_machine import RegexMachine
 if __name__ == "__main__":
     # Matches the example run in the TTT paper
-    sm = RegexMachine('(ab*ab*ab*ab*)*ab*ab*ab*')
+    sm = RegexMachine('b*(ab*ab*ab*ab*)*ab*ab*ab*')
 
-    eqc = BFEquivalenceChecker(sm)
+    eqc = FakeEQChecker(sm)
     teacher = Teacher(sm, eqc)
     learner = TTTDFALearner(teacher)
 
@@ -376,4 +422,6 @@ if __name__ == "__main__":
     #hyp.render_graph(tempfile.mktemp('.gv'))
 
     hyp = learner.stabilize_hypothesis(hyp)
-    hyp.render_graph(tempfile.mktemp('.gv'))
+    #hyp.render_graph(tempfile.mktemp('.gv'))
+
+    learner.DTree.render_graph(tempfile.mktemp('.gv'))
