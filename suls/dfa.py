@@ -17,11 +17,14 @@ class State:
     def __str__(self):
         return f'[State: {self.name}, edges: {[f"{a}:{n.name}" for a, n in self.edges.items()]}]'
 
-    def add_edge(self, action: str, other_state: State):
-        if action not in self.edges.keys():
+    def add_edge(self, action: str, other_state: State, override=False):
+        if override:
             self.edges[action] = other_state
         else:
-            raise Exception(f'{action} already defined in state {self.name}')
+            if action not in self.edges.keys():
+                self.edges[action] = other_state
+            else:
+                raise Exception(f'{action} already defined in state {self.name}')
 
     def next(self, action):
         if action in self.edges.keys():
@@ -89,10 +92,10 @@ class DFA(SUL):
         for input in inputs:
             try:
                 nextstate = self.state.next(input)
-                #print(f'({self.state.name}) ={input}=> ({nextstate.name})')
+                print(f'({self.state.name}) ={input}=> ({nextstate.name})')
                 self.state = nextstate
             except Exception as e:
-                #print(e)
+                print(e)
                 return False
 
         return self.state in self.accepting_states

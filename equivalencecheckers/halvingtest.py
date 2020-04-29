@@ -1,4 +1,4 @@
-from itertools import product
+8from itertools import product
 from typing import Tuple, Iterable
 
 from equivalencecheckers.equivalencechecker import EquivalenceChecker

@@ -97,7 +97,7 @@ class DTree:
                 else:
                     g.node(name)
             else:
-                g.node(node.state.name, shape='rect')
+                g.node(node.state.name, shape='square')
 
         for node in self.nodes.values():
             if node.isLeaf:
@@ -332,6 +332,11 @@ class TTTDFALearner(Learner):
         return True, None
 
     def finalize_discriminators(self):
+        # Gather blocks (maximal subtrees of temporary discriminators)
+
+        # At the root of a block, replace the root discriminator with a new final discriminator
+        # which is made by taking an existing final discriminator and prepending a character
+        # from the alphabet
         pass
 
     # Membership query

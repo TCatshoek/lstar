@@ -28,6 +28,7 @@ class BFEquivalenceChecker(EquivalenceChecker):
                 test_output = test_sul.process_input(test)
 
                 if self_output != test_output:
+                #if len(test) > 0 and test_output != 'invalid_input' and abs(self_output - test_output) > 2:
                     # Counterexample found
                     counterexample = test
                     found = True
