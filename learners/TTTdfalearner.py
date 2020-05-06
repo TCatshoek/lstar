@@ -1,10 +1,11 @@
 import tempfile
+from queue import Queue
 
 from graphviz import Digraph
 
 from equivalencecheckers.equivalencechecker import EquivalenceChecker
 from suls.dfa import DFA, State
-from itertools import product, chain, combinations
+from itertools import product, chain, combinations, permutations
 from functools import reduce
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.learner import Learner
@@ -15,13 +16,12 @@ from typing import Set, Tuple, Optional, Iterable
 from tabulate import tabulate
 
 
-
 class DTreeNode:
     def __init__(self, isLeaf, suffix=None, state=None, temporary=False):
         self.suffix = suffix
         self.state = state
         self.isLeaf = isLeaf
-        self.temporary = temporary
+        self.isTemporary = temporary
 
         # Child connections
         self._true = None
@@ -49,9 +49,19 @@ class DTreeNode:
             self.parent._true = new
         else:
             self.parent._false = new
+        new.parent = self.parent
+        self.parent = None
 
     def is_positive(self):
         return self.parent._true == self
+
+    def getAncestors(self):
+        ancestors = []
+        parent = self.parent
+        while parent is not None:
+            ancestors.append(parent)
+            parent = parent.parent
+        return ancestors
 
     def __str__(self):
         return f'[DTreeNode: ({self.state if self.isLeaf else self.suffix}), T: {self._true}, F: {self._false}'
@@ -85,20 +95,55 @@ class DTree:
     def getLeaf(self, state):
         return list(filter(lambda x: x.isLeaf and x.state == state, self.nodes.values()))[0]
 
+    # Gets all nodes that are potentially block root nodes
+    def getBlockRoots(self):
+        roots = list(filter(lambda x: x.isTemporary
+                            and not x.isLeaf
+                            and x.parent is not None
+                            and not x.parent.isTemporary,
+                            self.nodes.values()))
+        return roots
+
+    def getFinalizedDiscriminators(self):
+        return list(filter(lambda x: not x.isTemporary and not x.isLeaf, self.nodes.values()))
+
+    def getLowestCommonAncestor(self, n1, n2):
+        n1_ancestors = n1.getAncestors()
+        n2_ancestors = n2.getAncestors()
+
+        for i in range(1, min(len(n1_ancestors), len(n2_ancestors)) + 1):
+            n1_s = set(n1_ancestors[0:i])
+            n2_s = set(n2_ancestors[0:i])
+            intersection = n1_s.intersection(n2_s)
+
+            if len(intersection) > 0:
+                assert len(intersection) == 1
+                return intersection.pop()
+
     def render_graph(self, filename):
         g = Digraph('G', filename=filename)
-        #g.attr(rankdir='LR')
+        # g.attr(rankdir='LR')
 
+        # Draw nodes
         for node in self.nodes.values():
             if not node.isLeaf:
                 name = "".join(node.suffix) if len(node.suffix) > 0 else 'ε'
-                if node.temporary:
+                if node.isTemporary:
                     g.node(name, style='dotted')
                 else:
                     g.node(name)
+                # Debug parent connections
+                if node.parent is not None:
+                    pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
+                    g.edge(name, pname, label='P')
             else:
                 g.node(node.state.name, shape='square')
+                # Debug parent connections
+                if node.parent is not None:
+                    pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
+                    g.edge(node.state.name, pname, label='P')
 
+        # Draw edges
         for node in self.nodes.values():
             if node.isLeaf:
                 continue
@@ -110,7 +155,40 @@ class DTree:
                 target = node._false.state.name if node._false.isLeaf else "".join(node._false.suffix)
                 g.edge(name, target, label='F', style='dotted')
 
+
         g.view()
+
+
+# A block is a maximal subtree of the discrimination tree
+# containing only temporary nodes
+class Block:
+    def __init__(self, root: DTreeNode):
+        self.root = root
+
+        self.innernodes = [self.root]
+        self.leafnodes = []
+        # BFS to gather temp inner and leaf nodes in subtree
+        to_visit = [self.root]
+        while len(to_visit) > 0:
+            cur = to_visit.pop()
+            for child in [cur._true, cur._false]:
+                if child.isTemporary and not child.isLeaf and child not in self.innernodes:
+                    self.innernodes.append(child)
+                    to_visit.append(child)
+                elif child.isLeaf:
+                    self.leafnodes.append(child)
+
+    def __str__(self):
+        return f"Block [Root: {self.root.suffix}, Nodes: {[y.suffix for y in filter(lambda x: x is not self.root, self.innernodes)]}]"
+
+    def split(self, final_discriminators, alphabet):
+        # Grab the root and find a replacement by prepending a character from the alphabet
+        # to an existing finalized discriminator
+
+        # Find the shortest one that works
+        # A discriminator works if it splits at least two states in the block
+        best_len = None
+        #for cur_disc in potential_discriminators:
 
 
 # Implements the TTT algorithm
@@ -136,7 +214,6 @@ class TTTDFALearner(Learner):
             self.DTree.root.addTrue(self.DTree.createLeaf(initial_state))
         else:
             self.DTree.root.addFalse(self.DTree.createLeaf(initial_state))
-
 
     def sift(self, sequence):
         cur_dtree_node = self.DTree.root
@@ -186,7 +263,7 @@ class TTTDFALearner(Learner):
             n2 = len((self.S.items()))
 
             items_added = n != n2
-            print("items added", items_added)
+            #print("items added", items_added)
 
             n = n2
 
@@ -200,12 +277,12 @@ class TTTDFALearner(Learner):
         equivalent, counterexample = self.teacher.equivalence_query(hyp)
 
         if equivalent:
-            return hyp
+            return True, hyp
 
         self.process_counterexample(counterexample)
 
         # Todo: neatly update the hypothesis instead of rebuilding it from scratch
-        return self.construct_hypothesis()
+        return False, self.construct_hypothesis()
 
     # Decomposes the given counterexample, and updates the hypothesis
     # and discrimination tree accordingly
@@ -219,7 +296,6 @@ class TTTDFALearner(Learner):
         q_new_acc_seq = self.get_access_sequence(u) + a
         q_new_state = State(f's{len(self.S)}')
         self.S[q_new_acc_seq] = q_new_state
-
 
         ### update the DTree:
         # find the leaf corresponding to the state q_old
@@ -245,7 +321,6 @@ class TTTDFALearner(Learner):
         else:
             new_inner.addTrue(q_old_leaf)
             new_inner.addFalse(q_new_leaf)
-
 
     def decompose(self, sequence):
         for i in range(len(sequence) - 1):
@@ -299,15 +374,15 @@ class TTTDFALearner(Learner):
         stable = False
         while not stable:
             stable, counterexample = self.find_internal_counterexample(hyp)
-            print("Stable:", stable, "Counterexample:", counterexample)
+            #print("Stable:", stable, "Counterexample:", counterexample)
             if stable:
                 break
 
             self.process_counterexample(counterexample)
 
             hyp = self.construct_hypothesis()
-            hyp.render_graph(tempfile.mktemp('.gv'))
 
+        #hyp.render_graph(tempfile.mktemp('.gv'))
         return hyp
 
     def find_internal_counterexample(self, hyp):
@@ -326,24 +401,81 @@ class TTTDFALearner(Learner):
             hyp_accepts = hyp.process_input(acc_seq + dist_seq)
 
             if hyp_accepts != leaf_accepts:
-                print("Internal counterexample:", acc_seq + dist_seq, hyp_accepts, leaf_accepts)
+                #print("Internal counterexample:", acc_seq + dist_seq, hyp_accepts, leaf_accepts)
                 return False, acc_seq + dist_seq
 
         return True, None
 
     def finalize_discriminators(self):
         # Gather blocks (maximal subtrees of temporary discriminators)
+        blocks = Queue()
+        for block in [Block(root) for root in self.DTree.getBlockRoots()]:
+            blocks.put(block)
+
+        # Gather current final discriminators
+        final_discriminators = [x.suffix for x in self.DTree.getFinalizedDiscriminators()]
+
+        # Build index to find access sequences of states
+        S_inv = {}
+        for k, v in self.S.items():
+            S_inv[v] = k
+
+        while not blocks.empty():
+            best_len = None
+            best_disc = None
+            discriminated_nodes = None
+
+            # keep track of all pairs of nodes' lowest common discriminator
+            # to aid in rebuilding the tree after replacing the root
+            lcdiscs = {}
+
+            cur_block: Block = blocks.get()
+            cur_leaves = cur_block.leafnodes
+
+            leaf_combinations = permutations(cur_leaves, r=2)
+
+            # Find the best new discriminator (currently just the shortest correct one):
+            for prefix, final_discriminator in product(self.A, final_discriminators):
+                new_discriminator = prefix + final_discriminator
+
+                for n1, n2 in leaf_combinations:
+
+                    # also keep track of the lcds
+                    lcdiscs[(n1, n2)] = self.DTree.getLowestCommonAncestor(n1, n2)
+
+                    does_split, n1_out, n2_out = self.does_split(S_inv, new_discriminator, n1, n2)
+                    if does_split:
+                        if best_len is None or len(new_discriminator) < best_len:
+                            best_len = len(new_discriminator)
+                            best_disc = new_discriminator
+                            discriminated_nodes = (n1, n2)
+
+            # Prepare splitting the block by
+            cur_block.root.suffix = best_disc
+            cur_block.root.isTemporary = False
+
 
         # At the root of a block, replace the root discriminator with a new final discriminator
         # which is made by taking an existing final discriminator and prepending a character
         # from the alphabet
         pass
 
+    def does_split(self, S_inv, discriminator, n1, n2):
+        s1_acc_seq = S_inv[n1.state]
+        s2_acc_seq = S_inv[n2.state]
+
+        n1_out = self.query(s1_acc_seq + discriminator)
+        n2_out = self.query(s2_acc_seq + discriminator)
+
+        return n1_out != n2_out, n1_out, n2_out
+
+
+
     # Membership query
     def query(self, query):
-        #print("Query:", query)
+        # print("Query:", query)
         if query in self.T.keys():
-            #print("Returning cached")
+            # print("Returning cached")
             return self.T[query]
         else:
             accepted = self.teacher.member_query(query)
@@ -362,38 +494,31 @@ class TTTDFALearner(Learner):
         return tuple(filter(lambda x: x != 'λ', strquery.split(',')))
 
     def step(self):
-        pass
+        hyp = self.construct_hypothesis()
 
+        done, hyp = self.refine_hypothesis(hyp)
+        if done:
+            return done, hyp
+
+        hyp = self.stabilize_hypothesis(hyp)
+
+        #TODO
+        #hyp = self.finalize_discriminators()
+
+        return done, hyp
 
 
     def run(self, show_intermediate=False) -> DFA:
-        self.print_observationtable()
+        done = False
+        hyp = None
 
-        equivalent = False
+        while not done:
+            done, hyp = self.step()
 
-        while not equivalent:
-            while not (self._is_closed() and self._is_consistent()):
-                self.step()
+            if show_intermediate and not done:
+                hyp.render_graph(tempfile.mktemp('.gv'))
 
-            # Are we equivalent?
-            hypothesis = self.build_dfa()
-
-            print("HYPOTHESIS")
-            print(hypothesis)
-
-            if show_intermediate:
-                hypothesis.render_graph("tmp")
-
-            equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
-
-            if equivalent:
-                return hypothesis
-
-            print('COUNTEREXAMPLE', counterexample)
-
-            # if not, add counterexample and prefixes to S
-            for i in range(1, len(counterexample) + 1):
-                self.S.add(counterexample[0:i])
+        return hyp
 
 
 class FakeEQChecker(EquivalenceChecker):
@@ -411,6 +536,7 @@ class FakeEQChecker(EquivalenceChecker):
 
 
 from suls.re_machine import RegexMachine
+
 if __name__ == "__main__":
     # Matches the example run in the TTT paper
     sm = RegexMachine('b*(ab*ab*ab*ab*)*ab*ab*ab*')
@@ -421,12 +547,14 @@ if __name__ == "__main__":
 
     # Get the learners hypothesis
     hyp = learner.construct_hypothesis()
-    #hyp.render_graph(tempfile.mktemp('.gv'))
+    # hyp.render_graph(tempfile.mktemp('.gv'))
 
     hyp = learner.refine_hypothesis(hyp)
-    #hyp.render_graph(tempfile.mktemp('.gv'))
+    # hyp.render_graph(tempfile.mktemp('.gv'))
 
     hyp = learner.stabilize_hypothesis(hyp)
-    #hyp.render_graph(tempfile.mktemp('.gv'))
+    # hyp.render_graph(tempfile.mktemp('.gv'))
+
+    hyp = learner.finalize_discriminators()
 
     learner.DTree.render_graph(tempfile.mktemp('.gv'))
