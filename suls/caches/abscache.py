@@ -1,7 +1,7 @@
 import pickle
 from abc import ABC
 from suls.sul import SUL
-
+from pathlib import Path
 
 # Base functionality for a cache
 # Saving, loading, setting common options
@@ -22,7 +22,7 @@ class AbsCache(SUL, ABC):
         self.sul.reset()
 
     def get_alphabet(self):
-        self.sul.get_alphabet()
+        return self.sul.get_alphabet()
 
     def wrap_sul(self, sul):
         self.sul = sul
@@ -42,7 +42,7 @@ class AbsCache(SUL, ABC):
 
         assert storagepath is not None, "Please make sure storage path is set"
 
-        with open(storagepath, "wb") as file:
+        with open(Path(storagepath).joinpath("cache.p"), "wb") as file:
             pickle.dump(self.cache, file)
 
     def load(self, path):

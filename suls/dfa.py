@@ -92,7 +92,7 @@ class DFA(SUL):
         for input in inputs:
             try:
                 nextstate = self.state.next(input)
-                print(f'({self.state.name}) ={input}=> ({nextstate.name})')
+                #print(f'({self.state.name}) ={input}=> ({nextstate.name})')
                 self.state = nextstate
             except Exception as e:
                 print(e)

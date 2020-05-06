@@ -11,11 +11,14 @@ import os
 import sys
 
 class RERSConnectorV3(SUL):
-    def __init__(self, path_to_binary, path_to_cache=None, save_every_n=100000):
+    def __init__(self, path_to_binary):
         self.path = path_to_binary
         self.needs_reset = True
+
+        # These are only used if an external RERS cache is not hooked up
+        self.separator = " "
         self.cache = {}
-        self.error_cache = pygtrie.StringTrie(separator=" ")
+        self.error_cache = pygtrie.StringTrie(separator=self.separator)
         self.invalid_cache = pygtrie.PrefixSet()
 
         # Set up external process and communication
@@ -25,25 +28,16 @@ class RERSConnectorV3(SUL):
         self.t.daemon = True
         self.t.start()
 
-        # Save cache to file every n queries
-        self.save_every_n = save_every_n
-        self.n_queries = 0
 
-        if path_to_cache is None:
-            print("No cache path given, not using cache")
-            self.cachepath = None
-        else:
-            print("Cache dir:", str(Path(path_to_cache).absolute()))
-            # Hash the binary to find it's cache folder
-            with open(self.path, 'rb') as f:
-                hash = hashlib.sha256(f.read()).hexdigest()
-
-            # Check if cache exists for the given binary
-            self.cachepath = Path(path_to_cache).joinpath(hash)
-            if self.cachepath.is_dir():
-                self._load_cache()
-            else:
-                os.mkdir(self.cachepath)
+    # Not the best design, but for efficiency,
+    # the RERS connector needs to be able to
+    # "short circuit" queries that take an
+    # invalid action or reach an error state
+    def hookup_cache(self, cache, error_cache, invalid_cache):
+        self.separator = cache._separator
+        self.cache = cache
+        self.error_cache = error_cache
+        self.invalid_cache = invalid_cache
 
     def _enqueue(self, out, queue):
         while True:
@@ -51,29 +45,6 @@ class RERSConnectorV3(SUL):
             #print("GOT", line)
             queue.put(line)
 
-    def _load_cache(self):
-        with self.cachepath.joinpath('cache').open('rb') as f:
-            try:
-                self.cache = pickle.load(f)
-            except EOFError:
-                print("Error loading query cache")
-                self.cache = {}
-        with self.cachepath.joinpath('error_cache').open('rb') as f:
-            self.error_cache = pickle.load(f)
-        with self.cachepath.joinpath('invalid_cache').open('rb') as f:
-            self.invalid_cache = pickle.load(f)
-
-    def _save_cache(self):
-        if self.cachepath == None:
-            return
-
-        print("Saving cache to file...")
-        with self.cachepath.joinpath('cache').open('wb') as f:
-            pickle.dump(self.cache, f)
-        with self.cachepath.joinpath('error_cache').open('wb') as f:
-            pickle.dump(self.error_cache, f)
-        with self.cachepath.joinpath('invalid_cache').open('wb') as f:
-            pickle.dump(self.invalid_cache, f)
 
     def _interact(self, inputs):
 
@@ -89,8 +60,6 @@ class RERSConnectorV3(SUL):
                 shouldstop = True
 
             lines.append(out)
-
-
 
         return self.decode_result(lines, inputs)
 
@@ -111,13 +80,9 @@ class RERSConnectorV3(SUL):
                     return tmp
 
                 if "error" not in lines[idx + 1]:
-                    self.cache[inputs[0:idx + 1]] = result
+                    self.cache[" ".join(inputs[0:idx + 1])] = result
 
-        self.cache[inputs] = result
-
-        self.n_queries += 1
-        if self.n_queries % self.save_every_n == 0:
-            self._save_cache()
+        self.cache[" ".join(inputs)] = result
 
         return result
 
@@ -126,11 +91,11 @@ class RERSConnectorV3(SUL):
         inputs = tuple(inputs)
 
 
-        #Check if the input is already in cache
-        if inputs in self.cache.keys():
-            self.needs_reset = False
-            #print("[Cache hit]", inputs)
-            return self.cache[inputs]
+        # #Check if the input is already in cache
+        # if inputs in self.cache.keys():
+        #     self.needs_reset = False
+        #     #print("[Cache hit]", inputs)
+        #     return self.cache[inputs]
 
         # Check prefixes
         # if inputs in self.invalid_cache:
@@ -138,11 +103,11 @@ class RERSConnectorV3(SUL):
         #     return "invalid_input"
 
         #We need a string representing the input, actions separated with a space
-        inputs_string = " ".join(inputs)
-        prefix, value = self.error_cache.shortest_prefix(inputs_string)
-        if prefix is not None:
-            #print("[Known Error]", inputs)
-            return value
+        # inputs_string = " ".join(inputs)
+        # prefix, value = self.error_cache.shortest_prefix(inputs_string)
+        # if prefix is not None:
+        #     #print("[Known Error]", inputs)
+        #     return value
 
         # If no cache hit, actually send the input to the SUT
         print(f"\r[Query] {inputs}", end="", flush=True)
