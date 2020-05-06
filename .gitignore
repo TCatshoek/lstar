@@ -126,3 +126,6 @@ lextab.py
 yacctab.py
 
 tmp
+
+# Checkpoint folders
+checkpoint*/
