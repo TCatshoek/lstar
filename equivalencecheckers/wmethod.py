@@ -44,12 +44,12 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
 
         test_sequences = set([tuple(chain.from_iterable(x)) for x in set(product(P, Z))])
 
-        for pr in set(product(P, Z)):
-            tmp = tuple(chain.from_iterable(pr))
-            if '0' in tmp:
-                print(pr)
+        # for pr in set(product(P, Z)):
+        #     tmp = tuple(chain.from_iterable(pr))
+        #     if '0' in tmp:
+        #         print(pr)
 
-        print(test_sequences)
+        #print(test_sequences)
 
         # Apply the test sequences to the SUTs and compare
         equivalent = True

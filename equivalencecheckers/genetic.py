@@ -76,7 +76,9 @@ class Population:
 
             #print('rounds same', rounds_same)
 
-            newpop.add(self.gen_new())
+            newindividual = self.gen_new()
+            if len(newindividual) > 0:
+                newpop.add(newindividual)
 
         self.pop = newpop
         return newpop
