@@ -1,34 +1,41 @@
 import tempfile
 
-from equivalencecheckers.bruteforce import BFEquivalenceChecker
-from equivalencecheckers.wmethod import WmethodEquivalenceChecker
+from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker
 from learners.TTTmealylearner import TTTMealyLearner
-from suls.mealymachine import MealyState, MealyMachine
+from suls.caches.rerstriecache import RersTrieCache
+from suls.rersconnectorv4 import RERSConnectorV4
 from teachers.teacher import Teacher
+from rers.check_result import check_result
 
-# Set up an example mealy machine
-s1 = MealyState('1')
-s2 = MealyState('2')
-s3 = MealyState('3')
+# Try to learn a state machine for one of the RERS problems
+# Problem 11 is the easiest training problem
+problem = "Problem11"
 
-s1.add_edge('a', 'nice', s2)
-s1.add_edge('b', 'B', s1)
-s2.add_edge('a', 'nice', s3)
-s2.add_edge('b', 'back', s1)
-s3.add_edge('a', 'A', s3)
-s3.add_edge('b', 'back', s1)
+# Since we are interacting with a real system, we will want to cache
+# the responses so we don't unnecessarily repeat expensive queries
+cache = f'cache/{problem}'
+# The query caches are implemented as wrappers around the SUL classes
+# they work transparently and only catch queries that have been asked previously
+sul = RersTrieCache(
+    RERSConnectorV4(f'../../rers/TrainingSeqReachRers2019/{problem}/{problem}'),
+    storagepath=cache
+)
 
-mm = MealyMachine(s1)
+# We use a specialized W-method equivalence checker which features
+# early stopping on invalid inputs, which speeds things up a lot
+eqc = RersWmethodEquivalenceChecker(sul, False, m=15)
 
-# Use the W method equivalence checker
-eqc = WmethodEquivalenceChecker(mm)
+# Set up the teacher, with the system under learning and the equivalence checker
+teacher = Teacher(sul, eqc)
 
-teacher = Teacher(mm, eqc)
+# Set up the learner who only talks to the teacher
+# We let it save checkpoints of every intermediate hypothesis
+learner = TTTMealyLearner(teacher)#.enable_checkpoints("checkpoints")
 
-# We are learning a mealy machine
-learner = TTTMealyLearner(teacher)
+# Get the learners hypothesis
+hyp = learner.run(show_intermediate=True)
 
-hyp = learner.run()
+print("SUCCES", check_result(hyp, f'rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 
 hyp.render_graph(tempfile.mktemp('.gv'))
-learner.DTree.render_graph(tempfile.mktemp('.gv'))
+

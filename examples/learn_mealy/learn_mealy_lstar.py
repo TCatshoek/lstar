@@ -19,8 +19,9 @@ s3.add_edge('a', 'A', s3)
 s3.add_edge('b', 'back', s1)
 
 mm = MealyMachine(s1)
+mm.render_graph(tempfile.mktemp('.gv'))
 
-# Use the brute force equivalence checker
+# Use the W method equivalence checker
 eqc = WmethodEquivalenceChecker(mm)
 
 teacher = Teacher(mm, eqc)
