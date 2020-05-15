@@ -5,216 +5,227 @@ from collections import namedtuple
 from graphviz import Digraph
 import tempfile
 
-class Partition:
-    def __init__(self, states=None, edges=None):
-        if edges is None:
-            edges = {}
-        if states is None:
-            states = []
+from util.dotloader import load_mealy_dot
+from itertools import product
 
-        self.edges = edges
+PState = namedtuple('PState', 'original current')
+
+
+# WARNING: This code is ultra jank but it works on all tested (HUGE) mealy machines as long as they are minimal
+class PartitionNode:
+    def __init__(self, states, alphabet, acceptable=False, stable=False):
         self.states = states
+        self.A = alphabet
+        self.splitter = None
+        self.children = []
+        self.path = path
 
-    def __len__(self):
-        return len(self.states)
+        self.acceptable = acceptable
+        self.stable = stable
+        self.isleaf = True
 
-    def __str__(self):
-        return str(sorted(list(self.getStateNames())))
+    def split_output(self):
+        #print('trying split')
+        n_partitions = 0
+        potential_children = {}
 
-    def getStateNames(self):
-        return set([state.name for state in self.states])
+        for a in self.A:
+            cur_seen_outputs = set()
+            potential_children.clear()
 
-    def addState(self, state):
-        # Only add a state if no state with the same name is present
-        cur_names = [state.name for state in self.states]
-        if state.name not in cur_names:
-            self.states.append(state)
+            for cur_state in self.states:
 
-    def is_leaf(self):
-        return len(self) == 1
+                next_state, output = cur_state.next(a)
 
-class PTreeNode:
-    def __init__(self, partitions: Dict[str, Partition] = None, prev_input=tuple(), parent: Partition = None):
-        if partitions is None:
-            partitions = {}
+                cur_seen_outputs.add(output)
 
-        # Keep track of the path to end up in this node
-        self.prev_input = prev_input
+                if output in potential_children:
+                    potential_children[output].append(cur_state)
+                else:
+                    potential_children[output] = [cur_state]
 
-        # Keep track of the partitions this path splits the states in
-        self.partitions: Dict[str, Partition] = partitions
-        self.parent: Partition = parent
+            n_partitions = len(cur_seen_outputs)
+            if n_partitions > 1:
+                self.splitter = (a,)
+                break
 
-    def __str__(self):
-        return f'[{[f"{k}:{v.getStateNames()}" for k, v in self.partitions.items()]}]'
+        if n_partitions < 2:
+            #print('Made acceptable')
+            self.acceptable = True
+            return None, None
 
-    def is_leaf(self):
-        leaf = True
-        for partition in self.partitions.values():
-            leaf &= len(partition) == 1
-        return leaf
+        #print('found split', self.splitter, potential_children)
 
+        for output, states in potential_children.items():
+            self.children.append(PartitionNode(states, self.A, self.acceptable, self.stable))
 
+        self.isleaf = len(self.children) == 0
 
+        return self.splitter, self.children
 
-# Finds the optimal distinguishing set for a given state machine using
-# based on https://ieeexplore.ieee.org/document/1672636
-def get_distinguishing_set(fsm: MealyMachine):
-    # Setup state machine
-    states = fsm.get_states()
-    alphabet = fsm.get_alphabet()
+    def split_state(self, ptree):
+        name = " ".join([state.name for state in self.states])
+        #print("Split-stating ", " ".join([state.name for state in self.states]), "leaf:", self.isleaf, 'acceptable:', self.acceptable, 'stable:', self.stable)
 
-    root = PTreeNode({'': Partition(states)})
-    buildTree(root, alphabet)
+        if len(self.states) == 1:
+            self.stable = True
+            self.acceptable = True
+            return None, None
 
-    return walkTree2(root, states)
+        # Find split using state after a
+        seen_successor_states = set()
+        seen_partitions = set()
+        next_states_set = set()
 
+        for a in self.A:
+            seen_successor_states.clear()
+            next_states_set.clear()
+            seen_partitions.clear()
 
-# TODO: non-recursive implementation
-def buildTree(node: PTreeNode, alphabet, seen=list()):
-    print(node.prev_input)
-    if node.is_leaf():
-        return
+            for cur_state in self.states:
+                next_state, output = cur_state.next(a)
+                seen_successor_states.add(next_state.name)
+                seen_partitions.add(ptree.get_partition(next_state))
+                next_states_set.add(next_state)
 
-    for curpartition in node.partitions.values():
-        # Prevent loops
-        if curpartition.getStateNames() in seen:
-            continue
+            if len(seen_partitions) > 1:
+                self.splitter = (a,)
+                break
 
-        if curpartition.is_leaf():
-            continue
+        if self.splitter is None:
+            #print("no splitter :(")
+            self.stable = False
+            return None, None
 
-        for a in alphabet:
-            # Add outgoing edge from partition
-            new_node = PTreeNode(prev_input=node.prev_input + (a,), parent=curpartition)
-            curpartition.edges[a] = new_node
+        lca = ptree.get_lca(next_states_set)
+        assert lca.splitter is not None
 
-            # Assign states to nodes according to their responses
-            for state in curpartition.states:
-                nextstate, response = state.next(a)
+        self.splitter = self.splitter + lca.splitter
 
-                if nextstate is state:
-                    continue
+        # Now assign states to children according to their output given after the splitter
+        children = {}
+        for state in self.states:
+            next_state = state
+            next_out = None
+            for a in self.splitter:
+                next_state, next_out = next_state.next(a)
 
-                if response not in new_node.partitions.keys():
-                    new_node.partitions[response] = Partition()
-
-                new_node.partitions[response].addState(nextstate)
-
-        seen_tmp = seen.copy()
-        seen_tmp.append(curpartition.getStateNames())
-        for new_node in curpartition.edges.values():
-            buildTree(new_node, alphabet, seen_tmp)
-
-def drawTree(node: PTreeNode):
-    graph = Digraph(graph_attr={'compound': 'true'})
-
-    to_visit = [node]
-
-    while len(to_visit) > 0:
-        cur_node = to_visit.pop()
-
-        with graph.subgraph(name=f'cluster_{str(hex(id(cur_node)))}') as c:
-            print('making cluster', f'cluster_{str(hex(id(cur_node)))}')
-
-            if cur_node.is_leaf():
-                c.attr(style='filled', color='darkgrey')
+            if next_out in children:
+                children[next_out].append(state)
             else:
-                c.attr(style='filled', color='lightgrey')
+                children[next_out] = [state]
 
-            for partition in cur_node.partitions.values():
-                c.node(name=str(hex(id(partition))), label=str(partition))
-                for input, othernode in partition.edges.items():
+        for output, states in children.items():
+            self.children.append(PartitionNode(states, self.A, self.acceptable, self.stable))
 
-                    to_visit.append(othernode)
+        self.isleaf = False
 
-                    otherpart = list(othernode.partitions.values())[0]
-                    graph.edge(
-                        str(hex(id(partition))),
-                        str(hex(id(otherpart))),
-                        _attributes={
-                            'lhead': f'cluster_{str(hex(id(othernode)))}',
-                            'label': str(input)
-                        })
+        return self.splitter, self.children
 
 
-    graph.view(tempfile.mktemp('.gv'))
+class PartitionTree:
+    def __init__(self, fsm: MealyMachine):
+        self.fsm = fsm
+        self.A = fsm.get_alphabet()
 
-def walkTree(root: PTreeNode):
-    to_visit = [root]
-    dset = set()
+        self.states = self.fsm.get_states()
+        self.root = PartitionNode(self.states, self.A)
 
-    while len(to_visit) > 0:
-        cur_node = to_visit.pop()
+        self.nodes = [self.root]
 
-        for partition in cur_node.partitions.values():
-            if partition.is_leaf():
-                print('leaf', partition)
-                dset.add(cur_node.prev_input)
-            for other_node in partition.edges.values():
-                to_visit.append(other_node)
+        self.wanted = set([state.name for state in fsm.get_states()])
+        self.closed = set()
+        self.solution = set()
 
-    return dset
+    # The PTree is acceptable if all nodes are acceptable
+    def is_acceptable(self):
+        is_acc = True
+        for node in self.nodes:
+            if node.isleaf:
+                is_acc &= node.acceptable
+        return is_acc
 
-# BFS, check origin state on finding partition with single state
-def walkTree2(root: PTreeNode, states: List[MealyState]):
-    to_visit = [root]
-    dset = set()
+    def is_stable(self):
+        is_stab = True
+        for node in self.nodes:
+            if node.isleaf:
+                is_stab &= node.stable
+        return is_stab
 
-    # Keep track of which states we have found a sequence for already
-    states_found = []
+    def get_leaves(self):
+        return filter(lambda x: len(x.children) == 0, self.nodes)
 
-    while len(to_visit) > 0:
-        cur_node = to_visit.pop(0)
+    # Gets the leaf partition that holds the given state
+    def get_partition(self, state):
+        tmp = list(filter(lambda x: state in x.states, self.get_leaves()))
+        assert len(tmp) == 1
+        return tmp[0]
 
-        for partition in cur_node.partitions.values():
-            if partition.is_leaf():
-                # Where did we come from?
-                cur_state = partition.states[0]
-                path = cur_node.prev_input
+    # Can we just get the smallest partition node which contains all states?
+    def get_lca(self, states):
+        states = set(states)
 
-                # Check what state we get in from all other states
-                tmp = [(state, _trace(state, path)) for state in states]
+        best_node = None
+        best_len = len(self.states) + 1
 
-                og_state = None
-                for initial_state, later_state in tmp:
-                    if later_state == cur_state and initial_state not in states_found:
-                        og_state = initial_state
-                        continue
+        for node in self.nodes:
+            node_states = set(node.states)
 
-                # If we found a sequence for all states, we can quit
-                if set(states_found) == set(states):
-                    return dset
+            if states.issubset(node_states):
+                if len(node_states) < best_len:
+                    best_len = len(node_states)
+                    best_node = node
 
-                if og_state not in states_found:
-                    dset.add(path)
-                    states_found.append(og_state)
+        return best_node
 
 
-            for other_node in partition.edges.values():
-                to_visit.append(other_node)
+    def build(self):
+        while not self.is_acceptable():
+            cur_nodes = filter(lambda x: x.isleaf, self.nodes.copy())
+            for node in cur_nodes:
+                splitter, children = node.split_output()
+                if splitter is not None:
+                    self.solution.add(splitter)
+                if children is not None:
+                    for child in children:
+                        self.nodes.append(child)
 
-    return dset
+        #self.render_graph()
 
-def _trace(initial: MealyState, path):
-    cur_state = initial
-    for a in path:
-        next_state, output = cur_state.next(a)
-        cur_state = next_state
-    return cur_state
+        while not self.is_stable():
+            #print('attempting to stabilize')
+            cur_nodes = filter(lambda x: x.isleaf and not x.stable, self.nodes.copy())
+            for node in cur_nodes:
+                splitter, children = node.split_state(self)
+                if splitter is not None:
+                    self.solution.add(splitter)
+                if children is not None:
+                    for child in children:
+                        self.nodes.append(child)
 
-if __name__ == '__main__':
-    import pickle
+        #self.render_graph()
 
-    hyp: MealyMachine = pickle.load(open('../hyp.p', 'rb'))
 
-    dset = get_distinguishing_set(hyp)
 
-    #dset = walkTree2(tree, mm.get_states())
+    def render_graph(self, filename=None):
+        if filename is None:
+            filename = tempfile.mktemp('.gv')
 
-    print(dset)
+        g = Digraph('G', filename=filename)
 
-    states = hyp.get_states()
+        for node in self.nodes:
+            node_name = " ".join([state.name for state in node.states]) + f" / {node.splitter}"
+            g.node(node_name)
+
+            for child in node.children:
+                child_name = " ".join([state.name for state in child.states]) + f" / {child.splitter}"
+                g.edge(node_name, child_name)
+
+        g.view()
+
+
+def check_distinguishing_set(fsm, dset):
+    states = fsm.get_states()
     outputs = {}
     for state in states:
         mm = MealyMachine(state)
@@ -223,11 +234,34 @@ if __name__ == '__main__':
             out.append(mm.process_input(dseq))
             mm.reset()
         outputs[state] = tuple(out.copy())
-        out = []
 
-    if len(set(outputs)) < len(outputs):
-        print(outputs, "Not unique")
+    if len(set(outputs.values())) < len(outputs):
+        print("Not unique", outputs)
+        return False
+    else:
+        print('succes!', len(outputs), 'states,', len(set(outputs)), 'unique outputs')
+        return True
+
+# Uses partition refinement to find a distinguishing set for a given mealy machine
+def get_distinguishing_set(fsm: MealyMachine):
+    ptree = PartitionTree(fsm)
+    ptree.build()
+
+    dset = ptree.solution
+
+    assert check_distinguishing_set(fsm, dset)
+
+    return ptree.solution
 
 
+import pickle
 
-    #drawTree(tree)
+if __name__ == '__main__':
+    hyp: MealyMachine = pickle.load(open('../hyp.p', 'rb'))
+
+    path = "/home/tom/projects/lstar/rers/industrial/m27.dot"
+
+    fsm = load_mealy_dot(path)
+
+    dset = get_distinguishing_set(fsm)
+
