@@ -1,3 +1,5 @@
+import tempfile
+
 from suls.mealymachine import MealyMachine, MealyState
 from itertools import product, chain, combinations
 from functools import reduce
@@ -129,6 +131,8 @@ class MealyLearner(Learner):
         # Check if checkpoint dir exists
         Path(f'{dir}/{cpn}').mkdir(parents=True, exist_ok=True)
         self._checkpointdir = dir
+
+        return self
 
     def make_checkpoint(self):
         state = {
@@ -398,3 +402,4 @@ if __name__ == "__main__":
     learner = MealyLearner(teacher)
 
     hyp = learner.run()
+    hyp.render_graph(tempfile.mktemp('.gv'))
