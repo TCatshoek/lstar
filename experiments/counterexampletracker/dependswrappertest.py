@@ -66,15 +66,12 @@ def depends_on_S_E(func):
 
     return wrapper
 
-# Implements the L* algorithm by Dana Angluin, modified for mealy machines as per
-# https://link.springer.com/chapter/10.1007%2F978-3-642-05089-3_14
 class Test:
     def __init__(self):
         # Observation table (S, E, T)
         # NotifierSets raise a flag once they're modified
         # This is used to avoid repeating expensive computations
         self.S = NotifierSet()
-        self.E = NotifierSet()
 
         # Don't redo expensive computations unless necessary
         self._mem = {}
