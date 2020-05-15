@@ -17,11 +17,14 @@ class MealyState:
     def __str__(self):
         return f'[MealyState: {self.name}, edges: {[f"{a}/{o}:{n.name}" for a, (n, o) in self.edges.items()]}]'
 
-    def add_edge(self, action: str, output: str, other_state: MealyState):
-        if action not in self.edges.keys():
+    def add_edge(self, action: str, output: str, other_state: MealyState, override=False):
+        if override:
             self.edges[action] = (other_state, output)
         else:
-            raise Exception(f'{action} already defined in state {self.name}')
+            if action not in self.edges.keys():
+                self.edges[action] = (other_state, output)
+            else:
+                raise Exception(f'{action} already defined in state {self.name}')
 
     def next(self, action) -> Tuple[MealyState, str]:
         if action in self.edges.keys():

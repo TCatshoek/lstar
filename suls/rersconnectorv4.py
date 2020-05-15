@@ -10,7 +10,7 @@ import pickle
 import os
 import sys
 
-class RERSConnectorV3(SUL):
+class RERSConnectorV4(SUL):
     def __init__(self, path_to_binary):
         self.path = path_to_binary
         self.needs_reset = True

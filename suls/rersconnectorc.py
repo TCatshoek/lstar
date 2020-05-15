@@ -1,29 +1,28 @@
 from suls.sul import SUL
-from subprocess import check_output, Popen, STDOUT, PIPE
-from queue import Queue, Empty
-from threading import Thread
+import pexpect
+from subprocess import check_output, CalledProcessError, STDOUT
 import re
 import pygtrie
 import hashlib
 from pathlib import Path
 import pickle
 import os
-import sys
+import asyncio
+
+from suls.rersconnectorv4.build.connector import RERSConnectorV3 as CConnector
 
 class RERSConnectorV3(SUL):
-    def __init__(self, path_to_binary, path_to_cache=None, save_every_n=100000):
+    def __init__(self, path_to_binary, path_to_cache=None, save_every_n=1000, terminator="0"):
         self.path = path_to_binary
         self.needs_reset = True
         self.cache = {}
         self.error_cache = pygtrie.StringTrie(separator=" ")
         self.invalid_cache = pygtrie.PrefixSet()
 
-        # Set up external process and communication
-        self.proc = Popen(path_to_binary, bufsize=0, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
-        self.q = Queue()
-        self.t = Thread(target=self._enqueue, args=(self.proc.stdout, self.q))
-        self.t.daemon = True
-        self.t.start()
+        self.connector = CConnector(path_to_binary)
+
+        self.terminator = terminator
+        assert terminator not in self.get_alphabet(), f"Terminator {terminator} in alphabet, please choose a different one"
 
         # Save cache to file every n queries
         self.save_every_n = save_every_n
@@ -43,21 +42,11 @@ class RERSConnectorV3(SUL):
             if self.cachepath.is_dir():
                 self._load_cache()
             else:
-                Path(self.cachepath).mkdir(parents=True, exist_ok=True)
-
-    def _enqueue(self, out, queue):
-        while True:
-            line = out.readline()
-            #print("GOT", line)
-            queue.put(line)
+                os.mkdir(self.cachepath)
 
     def _load_cache(self):
         with self.cachepath.joinpath('cache').open('rb') as f:
-            try:
-                self.cache = pickle.load(f)
-            except EOFError:
-                print("Error loading query cache")
-                self.cache = {}
+            self.cache = pickle.load(f)
         with self.cachepath.joinpath('error_cache').open('rb') as f:
             self.error_cache = pickle.load(f)
         with self.cachepath.joinpath('invalid_cache').open('rb') as f:
@@ -76,26 +65,12 @@ class RERSConnectorV3(SUL):
             pickle.dump(self.invalid_cache, f)
 
     def _interact(self, inputs):
+        output = self.connector.interact_fast(" ".join([str(x) for x in inputs]) + " 0 ")
+        self.cache[inputs] = output
+        return output
 
-        self.proc.stdin.write((" ".join([str(x) for x in inputs]) + " 0 \n").encode('utf-8'))
-
-        lines = []
-
-        shouldstop = False
-        while not shouldstop:
-            out = self.q.get().decode().strip()
-
-            if out == "Reset":
-                shouldstop = True
-
-            lines.append(out)
-
-
-
-        return self.decode_result(lines, inputs)
 
     def decode_result(self, lines, inputs):
-        lines += ['']
 
         result = None
         for idx, line in enumerate(lines):
@@ -126,28 +101,45 @@ class RERSConnectorV3(SUL):
         inputs = tuple(inputs)
 
 
-        #Check if the input is already in cache
+        # Check if the input is already in cache
+        # if inputs in self.cache.keys():
+        #     self.needs_reset = False
+        #     #print("[Cache hit]", inputs)
+        #     return self.cache[inputs]
+
+        # # Check prefixes
+        # # if inputs in self.invalid_cache:
+        # #     #print("[Invalid]", inputs)
+        # #     return "invalid_input"
+
+        # We need a string representing the input, actions separated with a space
+        # inputs_string = " ".join(inputs)
+        # prefix, value = self.error_cache.shortest_prefix(inputs_string)
+        # if prefix is not None:
+        #     #print("[Known Error]", inputs)
+        #     return value
+
+        # If no cache hit, actually send the input to the SUT
+        #print("[Query]", inputs)
+        return self._interact(inputs)
+
+    async def process_input_async(self, inputs):
+        inputs = tuple(inputs)
+
+        # Check if the input is already in cache
         if inputs in self.cache.keys():
             self.needs_reset = False
-            #print("[Cache hit]", inputs)
+            # print("[Cache hit]", inputs)
             return self.cache[inputs]
 
-        # Check prefixes
-        # if inputs in self.invalid_cache:
-        #     #print("[Invalid]", inputs)
-        #     return "invalid_input"
-
-        #We need a string representing the input, actions separated with a space
+        # We need a string representing the input, actions separated with a space
         inputs_string = " ".join(inputs)
         prefix, value = self.error_cache.shortest_prefix(inputs_string)
         if prefix is not None:
-            #print("[Known Error]", inputs)
+            # print("[Known Error]", inputs)
             return value
 
-        # If no cache hit, actually send the input to the SUT
-        print(f"\r[Query] {inputs}", end="", flush=True)
-        sys.stdout.flush()
-        return self._interact(inputs)
+        return await self._interact_async(inputs)
 
     def reset(self):
         pass
@@ -159,24 +151,63 @@ class RERSConnectorV3(SUL):
         return re.search('{(.*)}', tmp.decode()).group(1).split(',')
 
 
+from numpy.random import choice
+
+async def consume(q, r):
+    while True:
+        input = await q.get()
+        result = await r.process_input_async(input)
+        print(result)
+        q.task_done()
+
+async def produce(q, n, alphabet):
+    for i in range(n):
+        input = list(choice(alphabet, 30))
+        await q.put(input)
+
+import time
+async def main(n_queries):
+    r = RERSConnectorV2('../rers/TrainingSeqReachRers2019/Problem11/Problem11')
+    alphabet = r.get_alphabet()
+
+    q = asyncio.Queue()
+
+    producer = asyncio.create_task(produce(q, n_queries, alphabet))
+    await asyncio.gather(producer)
+
+    start = time.perf_counter()
+
+    consumers = [asyncio.create_task(consume(q, r)) for n in range(100)]
+
+    await q.join()
+    for c in consumers:
+        c.cancel()
+
+    end = time.perf_counter() - start
+
+    print(f'Took {end:0.5f} seconds')
+
+    print("DONE")
+
+
 if __name__ == "__main__":
 
-    n = 1000
+    n = 10000
 
     #asyncio.run(main(n))
 
-    path = "/home/tom/projects/lstar/rers/TrainingSeqReachRers2019/Problem11/Problem11_patched"
-    r = RERSConnectorV3(path)
+    r = RERSConnectorV2('../rers/TrainingSeqReachRers2019/Problem11/Problem11')
     alphabet = r.get_alphabet()
 
+
+
     from numpy.random import choice
-    import time
+
 
     inputs = []
     for i in range(n):
-        inputs.append(list(choice(alphabet, 10)))
+        inputs.append(list(choice(alphabet, 1)))
 
-    #inputs = [['9', '7', '7'], ['8', '9', '7', '7']]
     start = time.perf_counter()
 
     for input in inputs:

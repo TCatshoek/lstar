@@ -1,5 +1,5 @@
 from suls.caches.abscache import AbsCache
-from suls.rersconnectorv3 import RERSConnectorV3
+from suls.rersconnectorv4 import RERSConnectorV4
 from suls.sul import SUL
 from pygtrie import StringTrie, PrefixSet
 from pathlib import Path
@@ -9,7 +9,7 @@ import pickle
 # RERS specific trie cache, uses separate tries for different outcomes
 # Uses a pygtrie trie as storage, slower than a dict but more memory efficient
 class RersTrieCache(AbsCache):
-    def __init__(self, sul: RERSConnectorV3 = None, separator=" ", storagepath=None, saveinterval=100000):
+    def __init__(self, sul: RERSConnectorV4 = None, separator=" ", storagepath=None, saveinterval=100000):
         super().__init__(sul, storagepath, saveinterval)
         self.separator = separator
         self.cache = StringTrie(separator=separator)
@@ -44,12 +44,13 @@ class RersTrieCache(AbsCache):
 
             # Retrieve output and add it to the correct cache
             output = self.sul.process_input(inputs)
-            if output.startswith("error"):
-                self.error_cache[trie_inputs] = output
-            elif output.startswith("Invalid"):
-                self.invalid_cache[trie_inputs] = output
-            else:
-                self.cache[trie_inputs] = output
+            if output is not None:
+                if output.startswith("error"):
+                    self.error_cache[trie_inputs] = output
+                elif output.startswith("Invalid"):
+                    self.invalid_cache[trie_inputs] = output
+                else:
+                    self.cache[trie_inputs] = output
 
             # Save if necessary
             self.querycounter += 1
@@ -65,20 +66,37 @@ class RersTrieCache(AbsCache):
 
         assert storagepath is not None, "Please make sure storage path is set"
 
-        with open(Path(storagepath).joinpath("cache.p"), "wb") as file:
-            pickle.dump(self.cache, file)
-        with open(Path(storagepath).joinpath("error_cache.p"), "wb") as file:
-            pickle.dump(self.error_cache, file)
-        with open(Path(storagepath).joinpath("invalid_cache.p"), "wb") as file:
-            pickle.dump(self.invalid_cache, file)
+        Path(storagepath).mkdir(parents=True, exist_ok=True)
+
+        cache_names = ['cache', 'error_cache', 'invalid_cache']
+        for cache_name in cache_names:
+            with open(Path(storagepath).joinpath(f"{cache_name}_tmp.p"), "wb") as file:
+                pickle.dump(self.__dict__[cache_name], file)
+
+        for cache_name in cache_names:
+            Path(storagepath).joinpath(f"{cache_name}_tmp.p").replace(Path(storagepath).joinpath(f"{cache_name}.p"))
+
+        #
+        # with open(Path(storagepath).joinpath("cache.p"), "wb") as file:
+        #     pickle.dump(self.cache, file)
+        # with open(Path(storagepath).joinpath("error_cache.p"), "wb") as file:
+        #     pickle.dump(self.error_cache, file)
+        # with open(Path(storagepath).joinpath("invalid_cache.p"), "wb") as file:
+        #     pickle.dump(self.invalid_cache, file)
 
     def load(self, storagepath):
-        with open(Path(storagepath).joinpath("cache.p"), "rb") as file:
-            self.cache = pickle.load(file)
-        with open(Path(storagepath).joinpath("error_cache.p"), "rb") as file:
-            self.error_cache = pickle.load(file)
-        with open(Path(storagepath).joinpath("invalid_cache.p"), "rb") as file:
-            self.invalid_cache = pickle.load(file)
+        cache_names = ['cache', 'error_cache', 'invalid_cache']
+        for cache_name in cache_names:
+            with open(Path(storagepath).joinpath(f"{cache_name}.p"), "rb") as file:
+                self.__dict__[cache_name] = pickle.load(file)
+
+        #
+        # with open(Path(storagepath).joinpath("cache.p"), "rb") as file:
+        #     self.cache = pickle.load(file)
+        # with open(Path(storagepath).joinpath("error_cache.p"), "rb") as file:
+        #     self.error_cache = pickle.load(file)
+        # with open(Path(storagepath).joinpath("invalid_cache.p"), "rb") as file:
+        #     self.invalid_cache = pickle.load(file)
 
         return self
 
