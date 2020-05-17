@@ -12,7 +12,7 @@ from learners.learner import Learner
 from suls.sul import SUL
 
 from teachers.teacher import Teacher
-from typing import Set, Tuple, Optional, Iterable
+from typing import Set, Tuple, Optional, Iterable, Callable
 from tabulate import tabulate
 
 
@@ -70,24 +70,25 @@ class DTreeNode:
 class DTree:
     def __init__(self, initial_state):
         # Dict keeping track of nodes so we can do easy lookups
-        self.nodes = {}
+        #self.nodes = {}
+        self.nodes = []
 
         self.root = self.createLeaf(initial_state)
         self.root.isRoot = True
 
     def createLeaf(self, state):
         node = DTreeNode(True, self, state=state)
-        self.nodes[state] = node
+        self.nodes.append(node)
         return node
 
     def createInner(self, suffix, temporary=False):
         node = DTreeNode(False, self, suffix=suffix, temporary=temporary)
-        self.nodes[suffix] = node
+        self.nodes.append(node)
         return node
 
     # Gets the leaf node holding the given state
     def getLeaf(self, state):
-        return list(filter(lambda x: x.isLeaf and x.state == state, self.nodes.values()))[0]
+        return list(filter(lambda x: x.isLeaf and x.state == state, self.nodes))[0]
 
     # Gets all nodes that are potentially block root nodes
     def getBlockRoots(self):
@@ -95,11 +96,11 @@ class DTree:
                                       and not x.isLeaf
                                       and x.parent is not None
                                       and not x.parent.isTemporary,
-                            self.nodes.values()))
+                            self.nodes))
         return roots
 
     def getFinalizedDiscriminators(self):
-        return list(filter(lambda x: not x.isTemporary and not x.isLeaf, self.nodes.values()))
+        return list(filter(lambda x: not x.isTemporary and not x.isLeaf, self.nodes))
 
     def getLowestCommonAncestor(self, n1, n2):
         n1_ancestors = n1.getAncestors()
@@ -114,38 +115,36 @@ class DTree:
                 assert len(intersection) == 1
                 return intersection.pop()
 
-    def render_graph(self, filename):
+    def render_graph(self, filename=None):
+        if filename is None:
+            filename = tempfile.mktemp('.gv')
         g = Digraph('G', filename=filename)
         # g.attr(rankdir='LR')
 
         # Draw nodes
-        for node in self.nodes.values():
+        for node in self.nodes:
             if not node.isLeaf:
-                name = "".join(node.suffix) if len(node.suffix) > 0 else 'ε'
+                name = " ".join(node.suffix) if len(node.suffix) > 0 else 'ε'
                 if node.isTemporary:
-                    g.node(name, style='dotted')
+                    g.node(str(id(node)), label=name, style='dotted')
                 else:
-                    g.node(name)
-                # Debug parent connections
-                # if node.parent is not None:
-                #     pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
-                #     g.edge(name, pname, label='P')
+                    g.node(str(id(node)), label=name)
+
             else:
-                g.node(node.state.name, shape='square')
-                # Debug parent connections
-                # if node.parent is not None:
-                #     pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
-                #     g.edge(node.state.name, pname, label='P')
+                g.node(str(id(node)), label=node.state.name, shape='square')
+            # Debug parent connections
+            if node.parent is not None:
+                g.edge(str(id(node)), str(id(node.parent)), label='P')
 
         # Draw edges
-        for node in self.nodes.values():
+        for node in self.nodes:
             if node.isLeaf:
                 continue
-            name = "".join(node.suffix) if len(node.suffix) > 0 else 'ε'
+            #name = " ".join(node.suffix) if len(node.suffix) > 0 else 'ε'
 
             for action, next_node in node.children.items():
-                target = next_node.state.name if next_node.isLeaf else "".join(next_node.suffix)
-                g.edge(name, target, label=str(action))
+                #target = next_node.state.name if next_node.isLeaf else " ".join(next_node.suffix)
+                g.edge(str(id(node)), str(id(next_node)), label=str(action))
             # if node._true is not None:
             #     target = node._true.state.name if node._true.isLeaf else "".join(node._true.suffix)
             #     g.edge(name, target, label='T')
@@ -227,7 +226,7 @@ class TTTMealyLearner(Learner):
         # If we end up on an empty node, we can add a new leaf pointing to the
         # state accessed by the given sequence
         if cur_dtree_node is None:
-            new_acc_seq = seq
+            new_acc_seq = sequence
             new_state = State(f's{len(self.S)}')
             new_dtree_node = self.DTree.createLeaf(new_state)
             self.S[new_acc_seq] = new_state
@@ -280,10 +279,22 @@ class TTTMealyLearner(Learner):
 
         self.process_counterexample(counterexample)
 
-        self.DTree.render_graph(tempfile.mktemp('.gv'))
+        #self.DTree.render_graph()
 
         # Todo: neatly update the hypothesis instead of rebuilding it from scratch
         return False, self.construct_hypothesis()
+
+    # TO DEBUG
+    # def check_dtree(self):
+    #     all_states = self.S.values()
+    #     reachable_states = []
+    #
+    #     # Walk the DTREE to check what states are not broken
+    #     to_visit = [self.DTree.root]
+    #     visited = []
+    #
+    #     while len(to_visit) > 0:
+
 
     # Decomposes the given counterexample, and updates the hypothesis
     # and discrimination tree accordingly
@@ -292,6 +303,7 @@ class TTTMealyLearner(Learner):
 
         # This state q_old needs to be split:
         q_old_state = self.get_state_from_sequence(u + a)
+        q_old_acc_seq = self.get_access_sequence_from_state(q_old_state)
 
         # Store new state and access sequence
         q_new_acc_seq = self.get_access_sequence(u) + a
@@ -307,10 +319,13 @@ class TTTMealyLearner(Learner):
         # replace the old leaf node with the new inner node
         q_old_leaf.replace(new_inner)
 
-        # check what branch the children should go in
-        response_q_old = self.query(u + v)
+        # check what branch the children should go
+        #TODO: Is this fucked??
+        response_q_old = self.query(q_old_acc_seq + v)
         response_q_new = self.query(q_new_acc_seq + v)
-        #assert response_q_new != response_q_old, "uh oh this should never happen"
+        # response_q_old = self.query(u + v)
+        # response_q_new = self.query(q_new_acc_seq + v)
+        assert response_q_new != response_q_old, "uh oh this should never happen"
 
         # prepare leaf node for the new state
         q_new_leaf = self.DTree.createLeaf(q_new_state)
@@ -318,6 +333,8 @@ class TTTMealyLearner(Learner):
         # Add the children to the corresponding branch of the new inner node
         new_inner.add(response_q_new, q_new_leaf)
         new_inner.add(response_q_old, q_old_leaf)
+
+        print("splitty boi", q_old_state.name, q_new_state.name)
         #
         # if response_q_new == True:
         #     new_inner.addTrue(q_new_leaf)
@@ -330,16 +347,26 @@ class TTTMealyLearner(Learner):
         if len(sequence) == 1:
             return tuple(), sequence, tuple()
 
-        for i in range(len(sequence) - 1):
+        for i in range(len(sequence)):
             u = sequence[:i]
-            a = tuple(sequence[i])
+            a = (sequence[i],)
             v = sequence[i + 1:]
+
+            print('u', u)
+            print('a', a)
+            print('v', v)
 
             q1 = self.query(self.get_access_sequence(u) + a + v)
             q2 = self.query(self.get_access_sequence(u + a) + v)
 
+            print('q1:', q1)
+            print('q2:', q2)
+            print()
             if q1 != q2:
                 return u, a, v
+
+        # TODO FIX INTERNAL COUNTEREXAMPLES THEY MESS EVERYTHING UP
+        assert False, 'Failed to decompose counterexample'
 
     def get_access_sequence(self, sequence):
         # find what state we end up in by following the sequence
@@ -354,6 +381,12 @@ class TTTMealyLearner(Learner):
         return state
 
     def get_access_sequence_from_state(self, state):
+        for acc_seq, s in self.S.items():
+            if s == state:
+                return acc_seq
+
+        assert False
+        # LOOL BFS IS WRONG BOI
         # BFS to find state
         visited = set()
         to_visit = [(tuple(), self.S[()])]
@@ -395,7 +428,8 @@ class TTTMealyLearner(Learner):
     def find_internal_counterexample(self, hyp):
         for acc_seq, state in self.S.items():
             # find this state in the DTree
-            leaf: DTreeNode = self.DTree.nodes[state]
+            leaf: DTreeNode = self.DTree.getLeaf(state)
+            #leaf: DTreeNode = self.DTree.nodes[state]
 
             # leaf "output"
             leaf_output = leaf.parentLabel
@@ -408,7 +442,7 @@ class TTTMealyLearner(Learner):
             hyp_output = hyp.process_input(acc_seq + dist_seq)
 
             if hyp_output != leaf_output:
-                # print("Internal counterexample:", acc_seq + dist_seq, hyp_accepts, leaf_accepts)
+                #print("Internal counterexample:", acc_seq + dist_seq, hyp_output, leaf_output)
                 return False, acc_seq + dist_seq
 
         return True, None
@@ -500,26 +534,40 @@ class TTTMealyLearner(Learner):
     def step(self):
         hyp = self.construct_hypothesis()
 
+        # hyp.render_graph()
+        # self.DTree.render_graph()
+
         done, hyp = self.refine_hypothesis(hyp)
+
+        # hyp.render_graph()
+        # self.DTree.render_graph()
+
+        print("Done:", done)
         if done:
             return done, hyp
 
         hyp = self.stabilize_hypothesis(hyp)
+
+        # hyp.render_graph()
+        # self.DTree.render_graph()
 
         # TODO
         # hyp = self.finalize_discriminators()
 
         return done, hyp
 
-    def run(self, show_intermediate=False) -> MealyMachine:
+    def run(self, show_intermediate=False, render_options=None, on_hypothesis: Callable[[MealyMachine], None] = None) -> MealyMachine:
         done = False
         hyp = None
 
         while not done:
             done, hyp = self.step()
 
+            if on_hypothesis is not None:
+                on_hypothesis(hyp)
+
             if show_intermediate and not done:
-                hyp.render_graph(tempfile.mktemp('.gv'))
+                hyp.render_graph(render_options=render_options)
 
         return hyp
 
@@ -553,6 +601,7 @@ if __name__ == "__main__":
     s3.add_edge('b', 'B', s1)
 
     mm = MealyMachine(s1)
+    mm.render_graph()
 
     eqc = BFEquivalenceChecker(mm)
 
