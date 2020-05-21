@@ -113,6 +113,10 @@ venv.bak/
 # Ignore rers
 rers/SeqReachabilityRers2019
 rers/TrainingSeqReachRers2019
+rers/IndReachabilityRers2019
+rers/industrial
+rers/rers_19_industrial_reachability_training
+rers/*.zip*
 
 # cache files
 cache/
@@ -129,3 +133,7 @@ tmp
 
 # Checkpoint folders
 checkpoint*/
+
+# Angr and klee experiments
+angr/
+klee/

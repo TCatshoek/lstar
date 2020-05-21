@@ -1,3 +1,4 @@
+from datetime import datetime
 from suls.caches.abscache import AbsCache
 from suls.rersconnectorv4 import RERSConnectorV4
 from suls.sul import SUL
@@ -9,7 +10,7 @@ import pickle
 # RERS specific trie cache, uses separate tries for different outcomes
 # Uses a pygtrie trie as storage, slower than a dict but more memory efficient
 class RersTrieCache(AbsCache):
-    def __init__(self, sul: RERSConnectorV4 = None, separator=" ", storagepath=None, saveinterval=100000):
+    def __init__(self, sul: RERSConnectorV4 = None, separator=" ", storagepath=None, saveinterval=15):
         super().__init__(sul, storagepath, saveinterval)
         self.separator = separator
         self.cache = StringTrie(separator=separator)
@@ -53,10 +54,12 @@ class RersTrieCache(AbsCache):
                     self.cache[trie_inputs] = output
 
             # Save if necessary
-            self.querycounter += 1
-            if self.querycounter > self.saveinterval:
+            now = datetime.now()
+            delta_minutes = (now - self.lastsaved).seconds / 60
+            if delta_minutes > self.saveinterval:
                 self.save()
                 self.querycounter = 0
+                self.lastsaved = now
 
             return output
 

@@ -7,27 +7,31 @@ from suls.mealymachine import MealyState, MealyMachine
 from teachers.teacher import Teacher
 from util.dotloader import load_mealy_dot
 
-path = "/home/tom/projects/lstar/rers/industrial/m34.dot"
+path = "/home/tom/projects/lstar/rers/industrial/m54.dot"
 
 mm = load_mealy_dot(path)
-#mm.render_graph(tempfile.mktemp('.gv'))
+mm.render_graph(tempfile.mktemp('.gv'), render_options={'ignore_self_edges': ['error', 'invalid']},)
 
 # Use the W method equivalence checker
 eqc = SmartWmethodEquivalenceChecker(mm,
-                                     m=len(mm.get_states()),
+                                     m=len(mm.get_states()) + 1,
                                      stop_on={'error'})
+
+
 
 eqc.onCounterexample(lambda x: print('Counterexample:', x))
 
 teacher = Teacher(mm, eqc)
 
 # We are learning a mealy machine
-learner = MealyLearner(teacher)\
-    .load_checkpoint('/tmp/checkpoints/m34/2020-05-15_20:53:14:317958')
+learner = MealyLearner(teacher)
 
-hyp = learner.run(show_intermediate=False)
+hyp = learner.run(
+    show_intermediate=False,
+    render_options={'ignore_self_edges': ['error', 'invalid']},
+)
 
-#hyp.render_graph(tempfile.mktemp('.gv'))
+hyp.render_graph(tempfile.mktemp('.gv'))
 
 assert len(hyp.get_states()) == len(mm.get_states())
 

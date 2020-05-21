@@ -1,6 +1,7 @@
 import tempfile
 
-from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker
+from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker, \
+    SmartWmethodEquivalenceChecker
 from learners.TTTmealylearner import TTTMealyLearner
 from learners.mealylearner import MealyLearner
 from suls.caches.rerstriecache import RersTrieCache
@@ -20,21 +21,29 @@ cache = f'cache/{problem}'
 sul = RersTrieCache(
     RERSConnectorV4(f'../../rers/TrainingSeqReachRers2019/{problem}/{problem}'),
     storagepath=cache
-)
+).load(cache)
 
 # We use a specialized W-method equivalence checker which features
 # early stopping on invalid inputs, which speeds things up a lot
-eqc = RersWmethodEquivalenceChecker(sul, False, m=7)
-
+#eqc = RersWmethodEquivalenceChecker(sul, False, m=15)
+eqc = SmartWmethodEquivalenceChecker(sul,
+                                     horizon=13,
+                                     stop_on={'invalid_input'},
+                                     stop_on_startswith={'error'})
 # Set up the teacher, with the system under learning and the equivalence checker
 teacher = Teacher(sul, eqc)
 
 # Set up the learner who only talks to the teacher
 # We let it save checkpoints of every intermediate hypothesis
-learner = MealyLearner(teacher)#.enable_checkpoints("checkpoints")
+learner = MealyLearner(teacher)\
+    .enable_checkpoints("checkpoints", problem)
 
 # Get the learners hypothesis
-hyp = learner.run(show_intermediate=True)
+hyp = learner.run(
+    show_intermediate=True,
+    render_options={'ignore_self_edges': ['error', 'invalid']},
+    on_hypothesis=lambda x: check_result(x, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv')
+)
 
 print("SUCCES", check_result(hyp, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 

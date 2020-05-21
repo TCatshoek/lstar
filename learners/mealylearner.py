@@ -6,7 +6,7 @@ from functools import reduce
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
 from learners.learner import Learner
 from teachers.teacher import Teacher
-from typing import Set, Tuple, Dict
+from typing import Set, Tuple, Dict, Callable, Iterable
 from tabulate import tabulate
 from util.changewrapper import NotifierSet
 from collections import namedtuple
@@ -151,9 +151,11 @@ class MealyLearner(Learner):
             state = pickle.load(f)
             for k, v in state.items():
                 self.__dict__[k] = v
+        return self
 
     # Membership query
     def query(self, query):
+        return self.teacher.member_query(query)
         if query in self.T.keys():
             return self.T[query]
         else:
@@ -232,7 +234,7 @@ class MealyLearner(Learner):
         return is_consistent
 
     def print_observationtable(self):
-        # Screw this
+        # No
         return
 
         rows = []
@@ -342,7 +344,7 @@ class MealyLearner(Learner):
 
         return MealyMachine(initial_state)
 
-    def run(self, show_intermediate=False) -> MealyMachine:
+    def run(self, show_intermediate=False, render_options=None, on_hypothesis: Callable[[MealyMachine], None] = None) -> MealyMachine:
         self.print_observationtable()
 
         equivalent = False
@@ -356,12 +358,14 @@ class MealyLearner(Learner):
 
             # Are we equivalent?
             hypothesis = self.build_dfa()
-
             print("HYPOTHESIS")
             print(hypothesis)
 
+            if on_hypothesis is not None:
+                on_hypothesis(hypothesis)
+
             if show_intermediate:
-                hypothesis.render_graph("tmp")
+                hypothesis.render_graph(render_options=render_options)
 
             equivalent, counterexample = self.teacher.equivalence_query(hypothesis)
 
@@ -370,8 +374,10 @@ class MealyLearner(Learner):
 
             print('COUNTEREXAMPLE', counterexample)
             hypothesis.reset()
-            print('Model output:', hypothesis.process_input(counterexample))
-            print('Actual output:', self.query(counterexample))
+            print('Hypothesis output:', hypothesis.process_input(counterexample))
+            print('SUL output:', self.query(counterexample))
+
+            print()
 
             # if not, add counterexample and prefixes to S
             for i in range(1, len(counterexample) + 1):

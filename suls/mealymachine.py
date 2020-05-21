@@ -1,10 +1,14 @@
 # Need this to fix types
 from __future__ import annotations
 
+import tempfile
 from typing import Union, Iterable, Dict, Tuple
 from suls.sul import SUL
 
 from graphviz import Digraph
+
+import random
+from itertools import product
 
 class MealyState:
     def __init__(self, name: str, edges: Dict[str, Tuple[MealyState, str]] = None):
@@ -105,7 +109,12 @@ class MealyMachine(SUL):
     def reset(self):
         self.state = self.initial_state
 
-    def render_graph(self, filename):
+    def render_graph(self, filename=None, render_options=None):
+        if filename is None:
+            filename = tempfile.mktemp('.gv')
+        if render_options is None:
+            render_options = {}
+
         g = Digraph('G', filename=filename)
         g.attr(rankdir='LR')
 
@@ -135,10 +144,18 @@ class MealyMachine(SUL):
                     g.node(other_state.name)
 
                 # Draw edges too
-                g.edge(cur_state.name, other_state.name, label=f'{action}/{output}')
+                ignore_self_edges = []
+                ignore_edges = []
+
+                if 'ignore_self_edges' in render_options:
+                    ignore_self_edges = render_options['ignore_self_edges']
+                if 'ignore_edges' in render_options:
+                    ignore_edges = render_options['ignore_edges']
+
+                if (not (any([output.startswith(x) for x in ignore_self_edges]) and other_state == cur_state)) \
+                        and not(any([output.startswith(x) for x in ignore_edges])):
+                    g.edge(cur_state.name, other_state.name, label=f'{action}/{output}')
 
         g.view()
 
 
-def MakeRandomMealyMachine(n_states, A):
-    pass#states =

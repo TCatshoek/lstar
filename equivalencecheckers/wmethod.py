@@ -4,7 +4,7 @@ from typing import Tuple, Iterable
 
 from pygtrie import PrefixSet
 
-from util.distinguishingset_fast import get_distinguishing_set
+from util.distinguishingset import get_distinguishing_set
 from util.transitioncover import get_state_cover_set
 from equivalencecheckers.equivalencechecker import EquivalenceChecker
 from suls.dfa import DFA
@@ -24,33 +24,39 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
         self.longest_first = longest_first
 
     def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
+        print("Starting EQ test")
+
         n = len(fsm.get_states())
         m = self.m
 
         assert m >= n, "hypothesis has more states than w-method bound"
 
-        depth = m - n
+        depth = m - n + 1
 
         print('Attempting to determine distinguishing set')
         W = get_distinguishing_set(fsm)
+        #W.add(tuple())
+        print('distinguishing:', W)
         P = get_state_cover_set(fsm)
-        X = set([(x,) for x in fsm.get_alphabet()])
+        print('state cover:', P)
+        X = fsm.get_alphabet() #set([(x,) for x in fsm.get_alphabet()])
 
         equivalent = True
         counterexample = None
 
-        order = sorted(range(depth), reverse=self.longest_first)
+        order = sorted(range(1, depth + 1), reverse=self.longest_first)
 
-        print("Starting EQ test")
+
         for i in order:
             print(i, '/', depth)
             for p in P:
                 for x in product(X, repeat=i):
                     for w in W:
                         test_sequence = p + x + w
-                        #print(test_sequence)
+                        print(test_sequence)
                         equivalent, counterexample = self._are_equivalent(fsm, test_sequence)
                         if not equivalent:
+                            print("COUNTEREXAMPLE:", counterexample)
                             return equivalent, counterexample
 
         return equivalent, counterexample
@@ -58,39 +64,61 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
 
 # Wmethod EQ checker with early stopping
 class SmartWmethodEquivalenceChecker(EquivalenceChecker):
-    def __init__(self, sul: SUL, m=5, stop_on={}, longest_first=False):
+    def __init__(self, sul: SUL, m=None, horizon=None, stop_on=set(), stop_on_startswith=set(), order_type='shortest first'):
         super().__init__(sul)
         self.m = m
-        self.longest_first = longest_first
+        self.horizon = horizon
+        assert (horizon is None or m is None) and not (m is None and horizon is None), "Set either m or horizon"
 
         # These are the outputs we want to cut our testing tree short on
         self.stop_on = stop_on
+        self.stop_on_startswith = stop_on_startswith
         # This prefix set keeps track of what paths lead to the outputs we want to stop early on
         self.stopping_set = PrefixSet()
 
+        # Keep track of how many times each access sequence has been part of a counterexample
+        self.acc_seq_ce_counter = {}
+
+        # Figure out how to order the access sequences
+        order_types = {
+            'longest first': lambda P: sorted(P, key=len, reverse=True),
+            'shortest first': lambda P: sorted(P, key=len, reverse=False),
+            'ce count': lambda P: sorted(P, key=lambda x: (self.acc_seq_ce_counter[x], -len(x)), reverse=True)
+        }
+        assert order_type in order_types.keys(), "Unknown access sequence ordering"
+        self.order_type = order_type
+        self.acc_seq_order = order_types[order_type]
 
     def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
         print("[info] Starting equivalence test")
-        n = len(fsm.get_states())
-        m = self.m
-        assert m >= n, "hypothesis has more states than w-method bound"
-        depth = m - n
+        if self.m is not None:
+            n = len(fsm.get_states())
+            m = self.m
+            assert m >= n, "hypothesis has more states than w-method bound"
+            depth = m - n
+        else:
+            depth = self.horizon
 
         print("Depth:", depth)
 
         print("[info] Calculating distinguishing set")
-        W = get_distinguishing_set(fsm)
+        W = get_distinguishing_set(fsm, check=False)
 
         P = get_state_cover_set(fsm)
         print("[info] Got state cover set")
+
+        # Ensure all access sequences have a counter
+        for p in P:
+            if p not in self.acc_seq_ce_counter:
+                self.acc_seq_ce_counter[p] = 0
 
         A = sorted([(x,) for x in fsm.get_alphabet()])
 
         equivalent = True
         counterexample = None
 
-        for access_sequence in sorted(P, key=len, reverse=self.longest_first):
-            #print("[info] Trying access sequence:", access_sequence)
+        for access_sequence in self.acc_seq_order(P):
+            print("[info] Trying access sequence:", access_sequence)
             to_visit = deque()
             to_visit.extend(A)
 
@@ -101,11 +129,13 @@ class SmartWmethodEquivalenceChecker(EquivalenceChecker):
                 for w in W:
                     equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur + w)
                     if not equivalent:
+                        self.acc_seq_ce_counter[access_sequence] += 1
                         return equivalent, counterexample
 
                 # Also test without distinguishing sequence, important for early stopping
                 equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur)
                 if not equivalent:
+                    self.acc_seq_ce_counter[access_sequence] += 1
                     return equivalent, counterexample
 
                 # Cut this branch short?
@@ -119,6 +149,10 @@ class SmartWmethodEquivalenceChecker(EquivalenceChecker):
                         if access_sequence + cur + a not in self.stopping_set:
                             to_visit.append(cur + a)
 
+            # Nothing found for this access sequence:
+            self.acc_seq_ce_counter[access_sequence] = min(0, self.acc_seq_ce_counter[access_sequence])
+            self.acc_seq_ce_counter[access_sequence] -= 1
+
         return equivalent, counterexample
 
     def _are_equivalent(self, fsm, input):
@@ -128,12 +162,13 @@ class SmartWmethodEquivalenceChecker(EquivalenceChecker):
         self.sul.reset()
         sul_output = self.sul.process_input(input)
 
-        if sul_output in self.stop_on:
+        if sul_output in self.stop_on or any([sul_output.startswith(x) for x in self.stop_on_startswith]):
             #print('[info] added input to early stopping set')
             self.stopping_set.add(input)
 
         equivalent = hyp_output == sul_output
         if not equivalent:
+            print("EQ CHECKER", input, "HYP", hyp_output, "SUL", sul_output)
             self._onCounterexample(input)
 
         return equivalent, input

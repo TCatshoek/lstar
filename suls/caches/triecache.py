@@ -6,7 +6,7 @@ from pygtrie import StringTrie
 # Simple cache wrapper for SULs
 # Uses a pygtrie trie as storage, slower than a dict but more memory efficient
 class TrieCache(AbsCache):
-    def __init__(self, sul: SUL = None, separator=" ", storagepath=None, saveinterval=100000):
+    def __init__(self, sul: SUL = None, separator=" ", storagepath=None, saveinterval=15):
         super().__init__(sul, storagepath, saveinterval)
         self.cache = StringTrie(separator=separator)
         self.separator = separator
@@ -25,8 +25,11 @@ class TrieCache(AbsCache):
             self.cache[trie_inputs] = output
 
             self.querycounter += 1
-            if self.querycounter > self.saveinterval:
+            now = datetime.now()
+            delta_minutes = (now - self.lastsaved).seconds / 60
+            if delta_minutes > self.saveinterval:
                 self.save()
                 self.querycounter = 0
+                self.lastsaved = now
 
             return output

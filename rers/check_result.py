@@ -9,7 +9,13 @@ def parse_csv(path):
 
     with open(path, 'r') as file:
         while (line := file.readline()) and line is not None:
-            state, is_reachable = line.strip().split(',')
+            #print('line', line)
+            try:
+                state, is_reachable = line.strip().split(',')
+            except ValueError:
+                line = line.strip('\n')
+                state, is_reachable = line.strip().split('\t')
+
             if is_reachable == "true":
                 reachable.add(int(state))
             else:
@@ -36,6 +42,7 @@ def check_result(fsm: MealyMachine, solution_path):
         print("Falsely reached", reached - reachable)
         return False
     else:
+        print("Reached everything!")
         return True
 
 if __name__ == '__main__':

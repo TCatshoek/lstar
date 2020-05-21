@@ -1,5 +1,5 @@
 from suls.rersconnectorv2 import RERSConnectorV2
-from suls.rersconnectorv3 import RERSConnectorV3
+from suls.rersconnectorv4 import RERSConnectorV3
 from suls.rersconnectorv2 import RERSConnectorV2
 from numpy.random import choice
 import time

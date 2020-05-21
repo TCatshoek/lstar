@@ -1,4 +1,5 @@
 import tempfile
+from collections import deque
 from queue import Queue
 
 from graphviz import Digraph
@@ -12,7 +13,7 @@ from learners.learner import Learner
 from suls.sul import SUL
 
 from teachers.teacher import Teacher
-from typing import Set, Tuple, Optional, Iterable, Callable
+from typing import Set, Tuple, Optional, Iterable, Callable, List
 from tabulate import tabulate
 
 
@@ -35,6 +36,8 @@ class DTreeNode:
         # Keep track of the DTree we belong to and if we're the root node
         self.dTree = dTree
         self.isRoot = isRoot
+
+        self.id = dTree.getID()
 
     def add(self, value, node):
         self.children[value] = node
@@ -63,6 +66,24 @@ class DTreeNode:
             parent = parent.parent
         return ancestors
 
+    def clone(self):
+
+        new_self = DTreeNode(
+            self.isLeaf, self.dTree, self.suffix,
+            self.state, self.isTemporary, self.isRoot
+        )
+
+        for output, child in self.children.items():
+            new_child = child.clone()
+            new_child.parentLabel = output
+            new_child.parent = new_self
+
+            new_self.children[output] = new_child
+
+        new_self.id = self.id
+
+        return new_self
+
     def __str__(self):
         return f'[DTreeNode: ({self.state if self.isLeaf else self.suffix})]'
 
@@ -70,11 +91,42 @@ class DTreeNode:
 class DTree:
     def __init__(self, initial_state):
         # Dict keeping track of nodes so we can do easy lookups
-        #self.nodes = {}
+        # self.nodes = {}
         self.nodes = []
+
+        # Incremental "ID" counter to give ids to nodes
+        self.idcounter = 0
 
         self.root = self.createLeaf(initial_state)
         self.root.isRoot = True
+
+    def getID(self):
+        id_ = self.idcounter
+        self.idcounter += 1
+        return id_
+
+    # After discriminator finalization the reachable nodes may have changed
+    # So we need to figure out which ones are still in the tree
+    # And assign new IDs to copied nodes
+    def refresh_nodes(self):
+        to_visit = [self.root]
+        visited = []
+        seen_IDs = set()
+
+        while len(to_visit) > 0:
+            cur_node = to_visit.pop()
+            visited.append(cur_node)
+
+            if cur_node.id in seen_IDs:
+                cur_node.id = self.getID()
+            seen_IDs.add(cur_node.id)
+
+            if not cur_node.isLeaf:
+                for next_node in cur_node.children.values():
+                    if next_node is not None:
+                        to_visit.append(next_node)
+
+        self.nodes = visited
 
     def createLeaf(self, state):
         node = DTreeNode(True, self, state=state)
@@ -90,12 +142,17 @@ class DTree:
     def getLeaf(self, state):
         return list(filter(lambda x: x.isLeaf and x.state == state, self.nodes))[0]
 
+    def getLeaves(self):
+        return list(filter(lambda x: x.isLeaf, self.nodes))
+
     # Gets all nodes that are potentially block root nodes
     def getBlockRoots(self):
-        roots = list(filter(lambda x: x.isTemporary
-                                      and not x.isLeaf
-                                      and x.parent is not None
-                                      and not x.parent.isTemporary,
+        roots = list(filter(lambda x: (x.isTemporary
+                                       # and not x.isLeaf
+                                       and x.parent is not None
+                                       and not x.parent.isTemporary)
+                                       or (x.isTemporary and x.isRoot)
+                                       or (x.isLeaf and not x.parent.isTemporary),
                             self.nodes))
         return roots
 
@@ -106,7 +163,7 @@ class DTree:
         n1_ancestors = n1.getAncestors()
         n2_ancestors = n2.getAncestors()
 
-        for i in range(1, min(len(n1_ancestors), len(n2_ancestors)) + 1):
+        for i in range(1, max(len(n1_ancestors), len(n2_ancestors)) + 1):
             n1_s = set(n1_ancestors[0:i])
             n2_s = set(n2_ancestors[0:i])
             intersection = n1_s.intersection(n2_s)
@@ -125,25 +182,28 @@ class DTree:
         for node in self.nodes:
             if not node.isLeaf:
                 name = " ".join(node.suffix) if len(node.suffix) > 0 else 'ε'
+                name += f" ID:{node.id}"
                 if node.isTemporary:
                     g.node(str(id(node)), label=name, style='dotted')
                 else:
                     g.node(str(id(node)), label=name)
 
             else:
-                g.node(str(id(node)), label=node.state.name, shape='square')
+                name = node.state.name
+                name += f" ID:{node.id}"
+                g.node(str(id(node)), label=name, shape='square')
             # Debug parent connections
-            if node.parent is not None:
-                g.edge(str(id(node)), str(id(node.parent)), label='P')
+            # if node.parent is not None:
+            #     g.edge(str(id(node)), str(id(node.parent)), label=f'P:{node.parentLabel}')
 
         # Draw edges
         for node in self.nodes:
             if node.isLeaf:
                 continue
-            #name = " ".join(node.suffix) if len(node.suffix) > 0 else 'ε'
+            # name = " ".join(node.suffix) if len(node.suffix) > 0 else 'ε'
 
             for action, next_node in node.children.items():
-                #target = next_node.state.name if next_node.isLeaf else " ".join(next_node.suffix)
+                # target = next_node.state.name if next_node.isLeaf else " ".join(next_node.suffix)
                 g.edge(str(id(node)), str(id(next_node)), label=str(action))
             # if node._true is not None:
             #     target = node._true.state.name if node._true.isLeaf else "".join(node._true.suffix)
@@ -159,15 +219,19 @@ class DTree:
 # containing only temporary nodes
 class Block:
     def __init__(self, root: DTreeNode):
-        self.root = root
+        self.root: DTreeNode = root
 
-        self.innernodes = [self.root]
-        self.leafnodes = []
+        self.innernodes: List[DTreeNode] = [self.root]
+        self.leafnodes: List[DTreeNode] = []
+
+        # Keep track of the marks put on nodes by mark and propagate
+        self.marks = None
+
         # BFS to gather temp inner and leaf nodes in subtree
         to_visit = [self.root]
         while len(to_visit) > 0:
             cur = to_visit.pop()
-            for child in [cur._true, cur._false]:
+            for child in cur.children.values():
                 if child.isTemporary and not child.isLeaf and child not in self.innernodes:
                     self.innernodes.append(child)
                     to_visit.append(child)
@@ -177,14 +241,116 @@ class Block:
     def __str__(self):
         return f"Block [Root: {self.root.suffix}, Nodes: {[y.suffix for y in filter(lambda x: x is not self.root, self.innernodes)]}]"
 
-    def split(self, final_discriminators, alphabet):
-        # Grab the root and find a replacement by prepending a character from the alphabet
-        # to an existing finalized discriminator
+    def split(self):
+        assert self.marks is not None, "Cannot split a non-marked block"
 
-        # Find the shortest one that works
-        # A discriminator works if it splits at least two states in the block
-        best_len = None
-        # for cur_disc in potential_discriminators:
+        # We need a subtree for all marks the root has
+        root_marks = self.marks[self.root.id]
+
+        subtrees = {}
+        for mark in root_marks:
+            subtrees[mark] = self.extract_subtree(mark)
+
+        return subtrees
+
+    # Extracts the subtree of all the nodes in the block that are marked with the given output
+    def extract_subtree(self, mark):
+        # Clone the block
+        root = self.root.clone()
+
+        # Strip out all nodes that don't have the mark we want
+        to_visit = [root]
+        to_collapse = []
+        while len(to_visit) > 0:
+
+            cur_node = to_visit.pop()
+
+            # Remove unwanted children (hi dad)
+            for out, child in list(cur_node.children.items()):
+                child_marks = self.marks[child.id]
+                if mark not in child_marks:
+                    del cur_node.children[out]
+                    child.parent = None
+                else:
+                    if not child.isLeaf:
+                        to_visit.append(child)
+
+            # If an inner node only has one child, we should collapse it
+            if len(cur_node.children) == 1 and not cur_node.isLeaf:
+                to_collapse.append(cur_node)
+
+        # Collapse nodes that only have one child:
+        for cur_node in to_collapse:
+            assert not cur_node.isLeaf
+
+            out, child = list(cur_node.children.items())[0]
+            parent = cur_node.parent
+
+            if parent is None:
+                assert cur_node is root  # Just checking assumptions
+                root = child
+                root.parent = None
+            else:
+                assert cur_node is not root
+                parent.children[cur_node.parentLabel] = child
+                child.parent = parent
+                child.parentLabel = cur_node.parentLabel
+
+            cur_node.children[out] = None
+            cur_node.parent = None
+
+        return root
+
+
+    def mark_and_propagate(self, splitter):
+        self.marks = {}
+
+        # Get leaf output of splitter
+        leaf_outputs = {}
+        for leaf in self.leafnodes:
+            cur_node = leaf.state
+            output = None
+            for input in splitter:
+                cur_node, output = cur_node.next(input)
+            leaf_outputs[leaf] = output
+
+        # Propagate the leaf outputs towards the root of the block
+        for leaf, leaf_output in leaf_outputs.items():
+
+            # Collect ancestors up til block root
+            to_mark = [leaf]
+            cur_node = leaf
+            while cur_node is not self.root:
+                cur_node = cur_node.parent
+                to_mark.append(cur_node)
+
+            # Mark them
+            for node in to_mark:
+                if node.id in self.marks:
+                    self.marks[node.id].add(leaf_output)
+                else:
+                    self.marks[node.id] = {leaf_output}
+
+
+    # Checks if this block has a leaf node containing the given state
+    def has_leaf(self, state):
+        for leafnode in self.leafnodes:
+            if leafnode.state == state:
+                return True
+        return False
+
+    # Get the leaf containing the given state if available, else none
+    def get_leaf(self, state):
+        for leafnode in self.leafnodes:
+            if leafnode.state == state:
+                return leafnode
+        return None
+
+    # # Finalizes the root of this block and returns a list of 'sub-blocks' (children as root)
+    # def finalize_root(self, final_discriminator):
+    #     self.root.isTemporary = False
+    #     self.root.suffix = final_discriminator
+    #     return [Block(child) for child in self.root.children.values()]
 
 
 # Implements the TTT algorithm
@@ -199,7 +365,7 @@ class TTTMealyLearner(Learner):
         self.DTree = DTree(self.S[tuple()])
 
         # Query cache
-        self.T = {}
+        # self.T = {}
 
         # Alphabet A
         self.A = set([(x,) for x in teacher.get_alphabet()])
@@ -266,7 +432,7 @@ class TTTMealyLearner(Learner):
             n = n2
 
         # Find accepting states
-        accepting_states = [state for access_seq, state in self.S.items() if self.query(access_seq)]
+        # accepting_states = [state for access_seq, state in self.S.items() if self.query(access_seq)]
 
         return MealyMachine(initial_state)
 
@@ -279,7 +445,7 @@ class TTTMealyLearner(Learner):
 
         self.process_counterexample(counterexample)
 
-        #self.DTree.render_graph()
+        # self.DTree.render_graph()
 
         # Todo: neatly update the hypothesis instead of rebuilding it from scratch
         return False, self.construct_hypothesis()
@@ -294,7 +460,6 @@ class TTTMealyLearner(Learner):
     #     visited = []
     #
     #     while len(to_visit) > 0:
-
 
     # Decomposes the given counterexample, and updates the hypothesis
     # and discrimination tree accordingly
@@ -320,7 +485,6 @@ class TTTMealyLearner(Learner):
         q_old_leaf.replace(new_inner)
 
         # check what branch the children should go
-        #TODO: Is this fucked??
         response_q_old = self.query(q_old_acc_seq + v)
         response_q_new = self.query(q_new_acc_seq + v)
         # response_q_old = self.query(u + v)
@@ -352,20 +516,23 @@ class TTTMealyLearner(Learner):
             a = (sequence[i],)
             v = sequence[i + 1:]
 
-            print('u', u)
-            print('a', a)
-            print('v', v)
+            # print('u', u)
+            # print('a', a)
+            # print('v', v)
 
             q1 = self.query(self.get_access_sequence(u) + a + v)
             q2 = self.query(self.get_access_sequence(u + a) + v)
 
-            print('q1:', q1)
-            print('q2:', q2)
-            print()
+            # print('q1:', q1)
+            # print('q2:', q2)
+            # print()
             if q1 != q2:
+                print('decomposition:')
+                print(u)
+                print(a)
+                print(v)
                 return u, a, v
 
-        # TODO FIX INTERNAL COUNTEREXAMPLES THEY MESS EVERYTHING UP
         assert False, 'Failed to decompose counterexample'
 
     def get_access_sequence(self, sequence):
@@ -386,7 +553,7 @@ class TTTMealyLearner(Learner):
                 return acc_seq
 
         assert False
-        # LOOL BFS IS WRONG BOI
+        # LOOL BFS IS WRONG BOI wait is it tho?
         # BFS to find state
         visited = set()
         to_visit = [(tuple(), self.S[()])]
@@ -429,7 +596,7 @@ class TTTMealyLearner(Learner):
         for acc_seq, state in self.S.items():
             # find this state in the DTree
             leaf: DTreeNode = self.DTree.getLeaf(state)
-            #leaf: DTreeNode = self.DTree.nodes[state]
+            # leaf: DTreeNode = self.DTree.nodes[state]
 
             # leaf "output"
             leaf_output = leaf.parentLabel
@@ -442,63 +609,106 @@ class TTTMealyLearner(Learner):
             hyp_output = hyp.process_input(acc_seq + dist_seq)
 
             if hyp_output != leaf_output:
-                #print("Internal counterexample:", acc_seq + dist_seq, hyp_output, leaf_output)
+                print("Internal counterexample:", acc_seq + dist_seq, hyp_output, leaf_output)
                 return False, acc_seq + dist_seq
 
         return True, None
 
     def finalize_discriminators(self):
-        # Gather blocks (maximal subtrees of temporary discriminators)
-        blocks = Queue()
-        for block in [Block(root) for root in self.DTree.getBlockRoots()]:
-            blocks.put(block)
+        print('Start discriminator finalization')
+        could_still_finalize = True
 
-        # Gather current final discriminators
-        final_discriminators = [x.suffix for x in self.DTree.getFinalizedDiscriminators()]
+        while could_still_finalize:
+            could_still_finalize = False
 
-        # Build index to find access sequences of states
-        S_inv = {}
-        for k, v in self.S.items():
-            S_inv[v] = k
+            # Gather blocks to finalize (maximal subtrees of temporary discriminators)
+            blocks = deque()
+            for block in [Block(root) for root in self.DTree.getBlockRoots() if not root.isLeaf]:
+                blocks.append(block)
 
-        while not blocks.empty():
-            best_len = None
-            best_disc = None
-            discriminated_nodes = None
+            while len(blocks) > 0:
+                cur_block: Block = blocks.pop()
 
-            # keep track of all pairs of nodes' lowest common discriminator
-            # to aid in rebuilding the tree after replacing the root
-            lcdiscs = {}
+                # If it's a leaf, we're done here
+                if cur_block.root.isLeaf:
+                    continue
 
-            cur_block: Block = blocks.get()
-            cur_leaves = cur_block.leafnodes
+                # Trivial case (suffix is already length 1, just mark the root as finalized):
+                if len(cur_block.root.suffix) == 1:
+                    cur_block.root.isTemporary = False
+                    blocks.extend([Block(child) for child in cur_block.root.children.values()])
+                    could_still_finalize = True
+                    continue
 
-            leaf_combinations = permutations(cur_leaves, r=2)
+                # Attempt to find a splitter
+                splitter = None
 
-            # Find the best new discriminator (currently just the shortest correct one):
-            for prefix, final_discriminator in product(self.A, final_discriminators):
-                new_discriminator = prefix + final_discriminator
+                # Gather all current blocks for lookup purposes
+                cur_blocks = [Block(root) for root in self.DTree.getBlockRoots()]
 
-                for n1, n2 in leaf_combinations:
+                # See if two states in the block can be separated output-wise or state-wise
+                for (x, y) in combinations(cur_block.leafnodes, r=2):
+                    for a in self.A:
+                        x_next, x_output = x.state.next(a[0])
+                        y_next, y_output = y.state.next(a[0])
 
-                    # also keep track of the lcds
-                    lcdiscs[(n1, n2)] = self.DTree.getLowestCommonAncestor(n1, n2)
+                        # Output wise?
+                        if x_output != y_output:
+                            splitter = a
+                            print("Output wise")
+                            break
 
-                    does_split, n1_out, n2_out = self.does_split(S_inv, new_discriminator, n1, n2)
-                    if does_split:
-                        if best_len is None or len(new_discriminator) < best_len:
-                            best_len = len(new_discriminator)
-                            best_disc = new_discriminator
-                            discriminated_nodes = (n1, n2)
+                        # State wise?
+                        x_blk, x_leaf = None, None
+                        y_blk, y_leaf = None, None
+                        for blk in cur_blocks:
+                            if blk.has_leaf(x_next):
+                                x_blk = blk
+                            if blk.has_leaf(y_next):
+                                y_blk = blk
+                            if x_blk is not None and y_blk is not None:# and x_blk != y_blk:
+                                break
 
-            # Prepare splitting the block by
-            cur_block.root.suffix = best_disc
-            cur_block.root.isTemporary = False
+                        if x_blk is not None and y_blk is not None and x_blk != y_blk:
 
-        # At the root of a block, replace the root discriminator with a new final discriminator
-        # which is made by taking an existing final discriminator and prepending a character
-        # from the alphabet
-        pass
+                            x_leaf = x_blk.get_leaf(x_next)
+                            y_leaf = y_blk.get_leaf(y_next)
+
+                            lca = self.DTree.getLowestCommonAncestor(x_leaf, y_leaf)
+
+                            splitter = a + lca.suffix
+                            print("State wise")
+                            break
+
+                    if splitter is not None:
+                        break
+
+                if splitter is None:
+                    continue
+
+                print("Splitter found!", splitter)
+
+                # now that we have a splitter, we can perform a split! yay!
+                # first, we need to mark the block
+                cur_block.mark_and_propagate(splitter)
+
+                # now, we can extract subtrees
+                subtrees = cur_block.split()
+
+                # yeet the new info in the block root and mark it as final!
+                cur_block.root.isTemporary = False
+                cur_block.root.suffix = splitter
+                cur_block.root.children = subtrees
+
+                for connection, child in cur_block.root.children.items():
+                    child.parent = cur_block.root
+                    child.parentLabel = connection
+
+                # refresh the DTree so it can update it's bookkeeping
+                self.DTree.refresh_nodes()
+
+                could_still_finalize = True
+
 
     def does_split(self, S_inv, discriminator, n1, n2):
         s1_acc_seq = S_inv[n1.state]
@@ -511,6 +721,7 @@ class TTTMealyLearner(Learner):
 
     # Membership query
     def query(self, query):
+        return self.teacher.member_query(query)
         # print("Query:", query)
         if query in self.T.keys():
             # print("Returning cached")
@@ -531,32 +742,55 @@ class TTTMealyLearner(Learner):
     def _rebuildquery(self, strquery):
         return tuple(filter(lambda x: x != 'λ', strquery.split(',')))
 
+    def allstatesunique(self):
+        state_names = set()
+        for s in self.S.values():
+            state_names.add(s)
+
+        assert len(self.S) == len(state_names), "S not unique"
+
+        leaf_states = []
+        for leaf in self.DTree.getLeaves():
+            leaf_states.append(leaf.state.name)
+
+        assert len(leaf_states) == len(set(leaf_states)), 'Duplicate leaf :('
+
     def step(self):
+
+        self.allstatesunique()
+
         hyp = self.construct_hypothesis()
 
         # hyp.render_graph()
         # self.DTree.render_graph()
+
+        self.allstatesunique()
 
         done, hyp = self.refine_hypothesis(hyp)
 
         # hyp.render_graph()
         # self.DTree.render_graph()
 
+        self.allstatesunique()
+
+        hyp = self.stabilize_hypothesis(hyp)
+
+        #hyp.render_graph()
+        #self.DTree.render_graph()
+        self.allstatesunique()
+
+        self.finalize_discriminators()
+
+        #self.DTree.render_graph()
+
         print("Done:", done)
         if done:
             return done, hyp
 
-        hyp = self.stabilize_hypothesis(hyp)
-
-        # hyp.render_graph()
-        # self.DTree.render_graph()
-
-        # TODO
-        # hyp = self.finalize_discriminators()
-
         return done, hyp
 
-    def run(self, show_intermediate=False, render_options=None, on_hypothesis: Callable[[MealyMachine], None] = None) -> MealyMachine:
+    def run(self, show_intermediate=False, render_options=None,
+            on_hypothesis: Callable[[MealyMachine], None] = None) -> MealyMachine:
         done = False
         hyp = None
 
@@ -574,16 +808,25 @@ class TTTMealyLearner(Learner):
 
 class FakeEQChecker(EquivalenceChecker):
 
-    def __init__(self, sul):
+    def __init__(self, sul, repeat):
         super().__init__(sul)
         self.count = 0
+        self.repeat = repeat
 
     def test_equivalence(self, test_sul: SUL) -> Tuple[bool, Optional[Iterable]]:
-        if self.count == 0:
-            self.count += 1
-            return False, ('b', 'b', 'b', 'a', 'a', 'a', 'b', 'b')
-        else:
-            return True, None
+        A = self.sul.get_alphabet()
+        equivalent = False
+        counterexample = None
+
+        for test_case in product(A, repeat=self.repeat):
+            equivalent, counterexample = self._are_equivalent(test_sul, test_case)
+            if not equivalent:
+                break
+
+        if not equivalent:
+            print("COUNTEREXAMPLE:", counterexample)
+
+        return equivalent, counterexample
 
 
 from suls.re_machine import RegexMachine
@@ -601,9 +844,9 @@ if __name__ == "__main__":
     s3.add_edge('b', 'B', s1)
 
     mm = MealyMachine(s1)
-    mm.render_graph()
+    #mm.render_graph()
 
-    eqc = BFEquivalenceChecker(mm)
+    eqc = FakeEQChecker(mm, repeat=5)
 
     teacher = Teacher(mm, eqc)
 
@@ -620,8 +863,11 @@ if __name__ == "__main__":
         # hyp.render_graph(tempfile.mktemp('.gv'))
         #
         hyp = learner.stabilize_hypothesis(hyp)
-        hyp.render_graph(tempfile.mktemp('.gv'))
+
+        hyp.render_graph()
+        learner.DTree.render_graph()
+        #
+        learner.finalize_discriminators()
+
+        learner.DTree.render_graph()
     #
-    # hyp = learner.finalize_discriminators()
-    #
-    learner.DTree.render_graph(tempfile.mktemp('.gv'))

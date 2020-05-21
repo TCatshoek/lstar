@@ -21,7 +21,7 @@ s3.add_edge('b', 'back', s1)
 mm = MealyMachine(s1)
 
 # Use the W method equivalence checker
-eqc = WmethodEquivalenceChecker(mm)
+eqc = WmethodEquivalenceChecker(mm, m=len(mm.get_states()))
 
 teacher = Teacher(mm, eqc)
 

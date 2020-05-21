@@ -1,10 +1,11 @@
 from suls.caches.abscache import AbsCache
-
+from datetime import datetime
+from suls.sul import SUL
 
 # Simple cache wrapper for SULs
 # Uses a python dict as storage, fast but not very memory efficient
 class DictCache(AbsCache):
-    def __init__(self, sul: SUL = None, storagepath=None, saveinterval=100000):
+    def __init__(self, sul: SUL = None, storagepath=None, saveinterval=15):
         super().__init__(sul, storagepath, saveinterval)
         self.cache = {}
 
@@ -19,8 +20,11 @@ class DictCache(AbsCache):
             self.cache[inputs] = output
 
             self.querycounter += 1
-            if self.querycounter > self.saveinterval:
+            now = datetime.now()
+            delta_minutes = (now - self.lastsaved).seconds / 60
+            if delta_minutes > self.saveinterval:
                 self.save()
                 self.querycounter = 0
+                self.lastsaved = now
 
             return output

@@ -250,7 +250,10 @@ def get_distinguishing_set(fsm: MealyMachine):
 
     assert check_distinguishing_set(fsm, dset)
 
-    return ptree.solution
+    if len(dset) == 0:
+        dset.add(tuple())
+
+    return dset
 
 
 import time

@@ -265,13 +265,14 @@ def get_dset_outputs(fsm, dset):
     return outputs
 
 # Uses partition refinement to find a distinguishing set for a given mealy machine
-def get_distinguishing_set(fsm: MealyMachine):
+def get_distinguishing_set(fsm: MealyMachine, check=True):
     ptree = PartitionTree(fsm)
     ptree.build()
 
     dset = ptree.solution
 
-    #check_distinguishing_set(fsm, dset)
+    if check:
+        assert check_distinguishing_set(fsm, dset)
 
     return ptree.solution
 
