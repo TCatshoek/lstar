@@ -1,6 +1,7 @@
 # Need this to fix types
 from __future__ import annotations
 
+import tempfile
 from typing import Union, Iterable
 from suls.sul import SUL
 
@@ -103,7 +104,10 @@ class DFA(SUL):
     def reset(self):
         self.state = self.initial_state
 
-    def render_graph(self, filename):
+    def render_graph(self, filename=None, format='pdf'):
+        if filename is None:
+            filename = tempfile.mktemp('.gv')
+
         g = Digraph('G', filename=filename)
         g.attr(rankdir='LR')
 
@@ -143,4 +147,4 @@ class DFA(SUL):
                 # Draw edges too
                 g.edge(cur_state.name, other_state.name, label=action)
 
-        g.view()
+        g.render(format=format, view=True)

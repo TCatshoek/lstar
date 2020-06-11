@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import tempfile
+import threading
 from typing import Union, Iterable, Dict, Tuple
 from suls.sul import SUL
 
@@ -109,53 +110,57 @@ class MealyMachine(SUL):
     def reset(self):
         self.state = self.initial_state
 
-    def render_graph(self, filename=None, render_options=None):
-        if filename is None:
-            filename = tempfile.mktemp('.gv')
-        if render_options is None:
-            render_options = {}
+    def render_graph(self, filename=None, format='pdf', render_options=None):
 
-        g = Digraph('G', filename=filename)
-        g.attr(rankdir='LR')
+        def render(filename, render_options):
+            if filename is None:
+                filename = tempfile.mktemp('.gv')
+            if render_options is None:
+                render_options = {}
 
-        # Collect nodes and edges
-        to_visit = [self.initial_state]
-        visited = []
+            g = Digraph('G', filename=filename)
+            g.attr(rankdir='LR')
 
-        # Hacky way to draw start arrow pointing to first node
-        g.attr('node', shape='none')
-        g.node('startz', label='', _attributes={'height': '0', 'width': '0'})
+            # Collect nodes and edges
+            to_visit = [self.initial_state]
+            visited = []
 
-        # Draw initial state
-        g.attr('node', shape='circle')
-        g.node(self.initial_state.name)
+            # Hacky way to draw start arrow pointing to first node
+            g.attr('node', shape='none')
+            g.node('startz', label='', _attributes={'height': '0', 'width': '0'})
 
-        g.edge('startz', self.initial_state.name)
-
-        while len(to_visit) > 0:
-            cur_state = to_visit.pop()
-            visited.append(cur_state)
-
+            # Draw initial state
             g.attr('node', shape='circle')
-            for action, (other_state, output) in cur_state.edges.items():
-                # Draw other states, but only once
-                if other_state not in visited and other_state not in to_visit:
-                    to_visit.append(other_state)
-                    g.node(other_state.name)
+            g.node(self.initial_state.name)
 
-                # Draw edges too
-                ignore_self_edges = []
-                ignore_edges = []
+            g.edge('startz', self.initial_state.name)
 
-                if 'ignore_self_edges' in render_options:
-                    ignore_self_edges = render_options['ignore_self_edges']
-                if 'ignore_edges' in render_options:
-                    ignore_edges = render_options['ignore_edges']
+            while len(to_visit) > 0:
+                cur_state = to_visit.pop()
+                visited.append(cur_state)
 
-                if (not (any([output.startswith(x) for x in ignore_self_edges]) and other_state == cur_state)) \
-                        and not(any([output.startswith(x) for x in ignore_edges])):
-                    g.edge(cur_state.name, other_state.name, label=f'{action}/{output}')
+                g.attr('node', shape='circle')
+                for action, (other_state, output) in cur_state.edges.items():
+                    # Draw other states, but only once
+                    if other_state not in visited and other_state not in to_visit:
+                        to_visit.append(other_state)
+                        g.node(other_state.name)
 
-        g.view()
+                    # Draw edges too
+                    ignore_self_edges = []
+                    ignore_edges = []
 
+                    if 'ignore_self_edges' in render_options:
+                        ignore_self_edges = render_options['ignore_self_edges']
+                    if 'ignore_edges' in render_options:
+                        ignore_edges = render_options['ignore_edges']
+
+                    if (not (any([output.startswith(x) for x in ignore_self_edges]) and other_state == cur_state)) \
+                            and not(any([output.startswith(x) for x in ignore_edges])):
+                        g.edge(cur_state.name, other_state.name, label=f'{action}/{output}')
+
+            g.render(format=format, view=True)
+
+        renderthread = threading.Thread(target=render, args=(filename, render_options))
+        renderthread.start()
 

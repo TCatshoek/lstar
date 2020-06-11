@@ -23,11 +23,25 @@ s2.add_edge('a', s2)
 s3.add_edge('a', s3)
 s3.add_edge('b', s3)
 
+s1 = State('q0')
+s2 = State('q1')
+s3 = State('q2')
+
+s1.add_edge('a', s2)
+s1.add_edge('b', s1)
+s2.add_edge('b', s1)
+s2.add_edge('a', s3)
+s3.add_edge('a', s3)
+s3.add_edge('b', s1)
+
+
+sm = DFA(s1, [s3])
+
 # Or use a regex to define the state machine
-#sm = RegexMachine('b*a+b.*')
+sm = RegexMachine('(ab)+')
 
 # We are using the brute force equivalence checker
-eqc = BFEquivalenceChecker(sm)
+eqc = BFEquivalenceChecker(sm, max_depth=10)
 
 # Set up the teacher, with the system under learning and the equivalence checker
 teacher = Teacher(sm, eqc)
@@ -36,6 +50,6 @@ teacher = Teacher(sm, eqc)
 learner = DFALearner(teacher)
 
 # Get the learners hypothesis
-hyp = learner.run()
+hyp = learner.run(show_intermediate=True)
 
 hyp.render_graph(tempfile.mktemp('.gv'))

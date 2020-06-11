@@ -162,6 +162,116 @@ class SmartWmethodEquivalenceChecker(EquivalenceChecker):
         self.sul.reset()
         sul_output = self.sul.process_input(input)
 
+        if self._teacher is not None:
+            self._teacher.test_query_counter += 1
+
+        if sul_output in self.stop_on or any([sul_output.startswith(x) for x in self.stop_on_startswith]):
+            #print('[info] added input to early stopping set')
+            self.stopping_set.add(input)
+
+        equivalent = hyp_output == sul_output
+        if not equivalent:
+            print("EQ CHECKER", input, "HYP", hyp_output, "SUL", sul_output)
+            self._onCounterexample(input)
+
+        return equivalent, input
+
+
+# Wmethod EQ checker with early stopping, access sequence scheduling
+class SmartWmethodEquivalenceCheckerV2(EquivalenceChecker):
+    def __init__(self, sul: SUL, m=None, horizon=None, stop_on=set(), stop_on_startswith=set(), order_type='shortest first'):
+        super().__init__(sul)
+        self.m = m
+        self.horizon = horizon
+        assert (horizon is None or m is None) and not (m is None and horizon is None), "Set either m or horizon"
+
+        # These are the outputs we want to cut our testing tree short on
+        self.stop_on = stop_on
+        self.stop_on_startswith = stop_on_startswith
+        # This prefix set keeps track of what paths lead to the outputs we want to stop early on
+        self.stopping_set = PrefixSet()
+
+        # Figure out how to order the access sequences
+        order_types = {
+            'longest first': lambda P: sorted(P, key=len, reverse=True),
+            'shortest first': lambda P: sorted(P, key=len, reverse=False),
+        }
+        assert order_type in order_types.keys(), "Unknown access sequence ordering"
+        self.order_type = order_type
+        self.acc_seq_order = order_types[order_type]
+
+    def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
+        print("[info] Starting equivalence test")
+        if self.m is not None:
+            n = len(fsm.get_states())
+            m = self.m
+            assert m >= n, "hypothesis has more states than w-method bound"
+            depth = m - n
+        else:
+            depth = self.horizon
+
+        print("Depth:", depth)
+
+        print("[info] Calculating distinguishing set")
+        W = get_distinguishing_set(fsm, check=False)
+
+        P = get_state_cover_set(fsm)
+        print("[info] Got state cover set")
+
+        A = sorted([(x,) for x in fsm.get_alphabet()])
+
+        equivalent = True
+        counterexample = None
+
+        acc_seq_tasks = deque(
+            zip(
+                self.acc_seq_order(P),
+                [deque([a for a in A if a not in self.stopping_set]) for x in range(len(P))]
+            )
+        )
+
+        while len(acc_seq_tasks) > 0:
+            access_sequence, to_visit = acc_seq_tasks.popleft()
+            print("[info] Trying access sequence:", access_sequence)
+            assert len(to_visit) > 0
+
+            cur = to_visit.popleft()
+
+            # Test without distinguishing sequence, important for early stopping
+            equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur)
+            if not equivalent:
+                return equivalent, counterexample
+
+            if access_sequence + cur not in self.stopping_set:
+                # Basically the usual W-method tests:
+                for w in W:
+                    equivalent, counterexample = self._are_equivalent(fsm, access_sequence + cur + w)
+                    if not equivalent:
+                        return equivalent, counterexample
+
+                # If not, keep building
+                if len(cur) <= depth:
+                    for a in A:
+                        if access_sequence + cur + a not in self.stopping_set:
+                            to_visit.append(cur + a)
+
+            if len(to_visit) > 0:
+                acc_seq_tasks.append((access_sequence, to_visit))
+            else:
+                print(access_sequence)
+
+        return equivalent, counterexample
+
+    def _are_equivalent(self, fsm, input):
+        print("[info] Testing:", input)
+        fsm.reset()
+        hyp_output = fsm.process_input(input)
+        self.sul.reset()
+        sul_output = self.sul.process_input(input)
+
+        if self._teacher is not None:
+            self._teacher.test_query_counter += 1
+
         if sul_output in self.stop_on or any([sul_output.startswith(x) for x in self.stop_on_startswith]):
             #print('[info] added input to early stopping set')
             self.stopping_set.add(input)

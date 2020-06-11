@@ -2,7 +2,7 @@ import tempfile
 
 from equivalencecheckers.accseqfuzzer import AccSeqFuzzer
 from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker, \
-    SmartWmethodEquivalenceChecker
+    SmartWmethodEquivalenceChecker, SmartWmethodEquivalenceCheckerV2
 from learners.TTTmealylearner import TTTMealyLearner
 from suls.caches.rerstriecache import RersTrieCache
 from suls.rersconnectorv4 import RERSConnectorV4
@@ -11,7 +11,7 @@ from rers.check_result import check_result
 
 # Try to learn a state machine for one of the RERS problems
 # Problem 11 is the easiest training problem
-problem = "Problem12"
+problem = "Problem13"
 
 # Since we are interacting with a real system, we will want to cache
 # the responses so we don't unnecessarily repeat expensive queries
@@ -27,11 +27,11 @@ sul = RersTrieCache(
 
 # We use a specialized W-method equivalence checker which features
 # early stopping on invalid inputs, which speeds things up a lot
-eqc = SmartWmethodEquivalenceChecker(sul,
-                                     horizon=8,
+eqc = SmartWmethodEquivalenceCheckerV2(sul,
+                                     horizon=15,
                                      stop_on={'invalid_input'},
-                                     stop_on_startswith={'error'},
-                                     order_type='shortest first')
+                                     stop_on_startswith={'error'})
+                                     #order_type='ce count')
 
 #eqc = AccSeqFuzzer(sul, depth=100, num_samples=1000)
 # Set up the teacher, with the system under learning and the equivalence checker
@@ -49,5 +49,5 @@ hyp = learner.run(
 )
 print("SUCCES", check_result(hyp, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 
-hyp.render_graph(tempfile.mktemp('.gv'))
+hyp.render_graph(render_options={'ignore_self_edges': ['error', 'invalid']})
 

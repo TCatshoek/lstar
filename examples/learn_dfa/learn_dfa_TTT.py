@@ -1,6 +1,7 @@
 import tempfile
 
 from equivalencecheckers.bruteforce import BFEquivalenceChecker
+from learners.TTTdfalearner import TTTDFALearner
 from learners.dfalearner import DFALearner
 from suls.re_machine import RegexMachine
 from suls.dfa import State, DFA
@@ -33,9 +34,10 @@ eqc = BFEquivalenceChecker(sm)
 teacher = Teacher(sm, eqc)
 
 # Set up the learner who only talks to the teacher
-learner = DFALearner(teacher)
+learner = TTTDFALearner(teacher)
 
 # Get the learners hypothesis
 hyp = learner.run()
 
 hyp.render_graph(tempfile.mktemp('.gv'))
+learner.DTree.render_graph()

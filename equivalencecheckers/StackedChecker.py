@@ -12,6 +12,11 @@ class StackedChecker(EquivalenceChecker):
         for arg in args:
             self.checkers.append(arg)
 
+    def set_teacher(self, teacher):
+        self.teacher = teacher
+        for checker in self.checkers:
+            checker.set_teacher(teacher)
+
     def test_equivalence(self, test_sul: SUL) -> Tuple[bool, Optional[Iterable]]:
         for checker in self.checkers:
             print('EQ check using', checker)

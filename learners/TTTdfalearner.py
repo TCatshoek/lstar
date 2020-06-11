@@ -120,7 +120,10 @@ class DTree:
                 assert len(intersection) == 1
                 return intersection.pop()
 
-    def render_graph(self, filename):
+    def render_graph(self, filename=None, format='pdf'):
+        if filename is None:
+            filename = tempfile.mktemp('.gv')
+
         g = Digraph('G', filename=filename)
         # g.attr(rankdir='LR')
 
@@ -133,15 +136,15 @@ class DTree:
                 else:
                     g.node(name)
                 # Debug parent connections
-                if node.parent is not None:
-                    pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
-                    g.edge(name, pname, label='P')
+                # if node.parent is not None:
+                #     pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
+                #     g.edge(name, pname, label='P')
             else:
                 g.node(node.state.name, shape='square')
                 # Debug parent connections
-                if node.parent is not None:
-                    pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
-                    g.edge(node.state.name, pname, label='P')
+                # if node.parent is not None:
+                #     pname = "".join(node.parent.suffix) if len(node.parent.suffix) > 0 else 'ε'
+                #     g.edge(node.state.name, pname, label='P')
 
         # Draw edges
         for node in self.nodes.values():
@@ -150,13 +153,12 @@ class DTree:
             name = "".join(node.suffix) if len(node.suffix) > 0 else 'ε'
             if node._true is not None:
                 target = node._true.state.name if node._true.isLeaf else "".join(node._true.suffix)
-                g.edge(name, target, label='T')
+                g.edge(name, target)#, label='T')
             if node._false is not None:
                 target = node._false.state.name if node._false.isLeaf else "".join(node._false.suffix)
-                g.edge(name, target, label='F', style='dotted')
+                g.edge(name, target, style='dotted') #, label='F'
 
-
-        g.view()
+        g.render(format=format, view=True)
 
 
 # A block is a maximal subtree of the discrimination tree
@@ -496,11 +498,20 @@ class TTTDFALearner(Learner):
     def step(self):
         hyp = self.construct_hypothesis()
 
+        hyp.render_graph('hyp_initial', format='png')
+        self.DTree.render_graph('dtree_initial', format='png')
+
         done, hyp = self.refine_hypothesis(hyp)
         if done:
             return done, hyp
 
+        hyp.render_graph('hyp_step1', format='png')
+        self.DTree.render_graph('dtree_step1', format='png')
+
         hyp = self.stabilize_hypothesis(hyp)
+
+        hyp.render_graph('hyp_step2', format='png')
+        self.DTree.render_graph('hyp_step3', format='png')
 
         #TODO
         #hyp = self.finalize_discriminators()

@@ -28,10 +28,12 @@ class ArithmeticTest(SUL):
     def _exec(self):
         if self.last_action == 'add':
             self.counter += 1
-            self.counter = min(self.counter, 18)
+            if self.counter > 18:
+                self.counter = 0
         if self.last_action == 'sub':
             self.counter -= 1
-            self.counter = max(0, self.counter)
+            if self.counter < 0:
+                self.counter = 18
         self.last_action = 'exec'
         return 'ok'
 
@@ -82,7 +84,7 @@ if __name__ == "__main__":
     eqc = SmartWmethodEquivalenceChecker(sul, horizon=3)
 
     eqc = StackedChecker(
-        #GeneticEquivalenceChecker(sul, ct, pop_n=10000),
+        GeneticEquivalenceChecker(sul, ct, pop_n=10000),
         SmartWmethodEquivalenceChecker(sul, horizon=3, order_type='ce count')
     )
 
@@ -91,7 +93,7 @@ if __name__ == "__main__":
     teacher = Teacher(sul, eqc)
 
     # We are learning a mealy machine
-    learner = MealyLearner(teacher)
+    learner = TTTMealyLearner(teacher)
 
     def print_stats(hyp=None):
         print("Member queries:", teacher.member_query_counter)
@@ -107,8 +109,5 @@ if __name__ == "__main__":
     #learner.DTree.render_graph()
 
     hyp.render_graph(tempfile.mktemp('.gv'))
-
-    for ce in ct.storage:
-        print(ce)
 
     print_stats()

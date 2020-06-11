@@ -85,8 +85,8 @@ class DFALearner(Learner):
         for (s1, s2) in eqrows:
             for a in self.A:
                 cur_consistent = self._get_row(s1 + a) == self._get_row(s2 + a)
-                # if not cur_consistent:
-                # print("Inconsistency found:", f'{s1},{a}', f'{s2},{a}')
+                if not cur_consistent:
+                    print("Inconsistency found:", f'{s1},{a}', f'{s2},{a}')
                 is_consistent &= cur_consistent
 
         return is_consistent
@@ -116,6 +116,9 @@ class DFALearner(Learner):
         print(tabulate(rows + rows_sa, headers="firstrow", tablefmt="fancy_grid"))
 
     def step(self):
+        print('start step')
+        print('Closed:', self._is_closed())
+        print('Consistent:', self._is_consistent())
         if not self._is_consistent():
             # Gather equal rows
             eqrows = [(s1, s2) for (s1, s2) in combinations(self.S, 2) if self._get_row(s1) == self._get_row(s2)]

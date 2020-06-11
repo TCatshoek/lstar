@@ -41,7 +41,10 @@ def patch(path):
                     # Count amount of  elements
                     n_el = rh.count(',') + 1
                     var = f'{arr.group(1)}[{n_el}];'
-                    assignment = f'static {arr.group(1)}[{n_el}] = {rh}'
+                    #assignment = f'static {arr.group(1)}[{n_el}] = {rh}'
+                    # We can't assign an array literal after declaration, so need to use memcpy
+                    varname = arr.group(1).strip('int').strip()
+                    assignment = f'memcpy({varname}, (int[]){rh.strip(";")}, sizeof({varname}));'
                 else:
                     var = re.search('int \*?[a-z0-9]+(\[\])?', decl).group(0).strip() + ";"
                     assignment = re.search("[a-z0-9]+(\[\])?\s+=\s+-?\{?[a-z]?([0-9]+,?)+\}?;", decl).group(0).strip()
@@ -61,7 +64,7 @@ def patch(path):
                 manualresetpos = idx
 
         # Assemble the new file
-        patched = []
+        patched = ["#include <string.h>\n"]
         patched += lines[0:vardeclines[0] - 1] # Lines before vars
         patched += [d + "\n" for d in declarations]
         patched += ["void reset() {\n"]

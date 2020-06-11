@@ -152,7 +152,7 @@ class DTree:
                                        and x.parent is not None
                                        and not x.parent.isTemporary)
                                        or (x.isTemporary and x.isRoot)
-                                       or (x.isLeaf and not x.parent.isTemporary),
+                                       or (x.isLeaf and not x.parent is None and not x.parent.isTemporary),
                             self.nodes))
         return roots
 
@@ -473,6 +473,9 @@ class TTTMealyLearner(Learner):
         # Store new state and access sequence
         q_new_acc_seq = self.get_access_sequence(u) + a
         q_new_state = State(f's{len(self.S)}')
+
+        assert q_new_acc_seq not in self.S
+
         self.S[q_new_acc_seq] = q_new_state
 
         ### update the DTree:
@@ -602,7 +605,7 @@ class TTTMealyLearner(Learner):
             leaf_output = leaf.parentLabel
 
             # what is the distinguishing sequence?
-            dist_seq = leaf.parent.suffix
+            dist_seq = tuple() if leaf.isRoot else leaf.parent.suffix
 
             # hypothesis output
             hyp.reset()

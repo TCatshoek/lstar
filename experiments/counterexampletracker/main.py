@@ -2,7 +2,7 @@
 import tempfile
 
 from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker, \
-    SmartWmethodEquivalenceChecker
+    SmartWmethodEquivalenceChecker, SmartWmethodEquivalenceCheckerV2
 from equivalencecheckers.StackedChecker import StackedChecker
 from equivalencecheckers.genetic import GeneticEquivalenceChecker
 from learners.TTTmealylearner import TTTMealyLearner
@@ -21,8 +21,9 @@ sys.path.extend(['/home/tom/projects/lstar'])
 problem = "Problem12"
 
 ct = CounterexampleTracker()
+#ct.load(f'counterexamples_{problem}.p')
 
-cache = '../../cache/problem12_genetic'
+cache = '../../cache/problem12_genetic2'
 
 # Try to learn a state machine for one of the RERS problems
 sul = RersTrieCache(
@@ -31,12 +32,12 @@ sul = RersTrieCache(
 )#.load(cache)
 
 eqc = StackedChecker(
-    GeneticEquivalenceChecker(sul, ct, pop_n=10000),
-    SmartWmethodEquivalenceChecker(sul,
-                                   horizon=6,
+    GeneticEquivalenceChecker(sul, ct, pop_n=100),
+    SmartWmethodEquivalenceCheckerV2(sul,
+                                   horizon=9,
                                    stop_on={'invalid_input'},
-                                   stop_on_startswith={'error'},
-                                   order_type='shortest first')
+                                   stop_on_startswith={'error'})
+                                   #order_type='ce count')
 )
 # Store found counterexamples
 def onct(ctex):
@@ -60,4 +61,4 @@ hyp = learner.run(
 
 print("SUCCES", check_result(hyp, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 
-hyp.render_graph(tempfile.mktemp('.gv'))
+hyp.render_graph(render_options={'ignore_self_edges': ['error', 'invalid']})

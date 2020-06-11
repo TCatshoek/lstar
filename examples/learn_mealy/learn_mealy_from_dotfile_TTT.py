@@ -9,7 +9,7 @@ from suls.mealymachine import MealyState, MealyMachine
 from teachers.teacher import Teacher
 from util.dotloader import load_mealy_dot
 
-problem = 'm34'
+problem = 'm217'
 path = f"/home/tom/projects/lstar/rers/industrial/{problem}.dot"
 cache = f'cache/{problem}'
 
@@ -27,8 +27,8 @@ mm.render_graph(render_options={
 
 # Use the W method equivalence checker
 eqc = SmartWmethodEquivalenceChecker(mm,
-                                     horizon=3,
-                                     #m=len(mm.get_states()),
+                                     #horizon=3,
+                                     m=len(mm.get_states()),
                                      stop_on={'error'},
                                      order_type='ce count')
 
@@ -48,7 +48,7 @@ hyp = learner.run(
 learner.DTree.render_graph()
 hyp.render_graph(render_options={
     'ignore_self_edges': ['error', 'invalid'],
-    'ignore_edges': ['error']
+    #'ignore_edges': ['error']
 })
 assert len(hyp.get_states()) == len(mm.get_states())
 

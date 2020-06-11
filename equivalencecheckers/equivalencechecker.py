@@ -9,10 +9,15 @@ class EquivalenceChecker(ABC):
 
         # Noop init
         self._onCounterexample: Callable[[Iterable], None] = lambda x: None
+        # Ref to teacher to keep track of number of test queries
+        self._teacher = None
 
     @abstractmethod
     def test_equivalence(self, test_sul: SUL) -> Tuple[bool, Optional[Iterable]]:
         pass
+
+    def set_teacher(self, teacher):
+        self._teacher = teacher
 
     def onCounterexample(self, fun: Callable[[Iterable], None]):
         self._onCounterexample = fun
@@ -23,6 +28,10 @@ class EquivalenceChecker(ABC):
         hyp_output = fsm.process_input(input)
         self.sul.reset()
         sul_output = self.sul.process_input(input)
+
+        if self._teacher is not None:
+            self._teacher.test_query_counter += 1
+
         #print(sul_output)
 
         equivalent = hyp_output == sul_output
