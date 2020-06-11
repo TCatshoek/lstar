@@ -9,7 +9,7 @@ from suls.mealymachine import MealyState, MealyMachine
 from teachers.teacher import Teacher
 from util.dotloader import load_mealy_dot
 
-problem = 'm217'
+problem = 'm54'
 path = f"/home/tom/projects/lstar/rers/industrial/{problem}.dot"
 cache = f'cache/{problem}'
 

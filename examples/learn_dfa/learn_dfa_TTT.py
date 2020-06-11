@@ -39,5 +39,5 @@ learner = TTTDFALearner(teacher)
 # Get the learners hypothesis
 hyp = learner.run()
 
-hyp.render_graph(tempfile.mktemp('.gv'))
+hyp.render_graph()
 learner.DTree.render_graph()

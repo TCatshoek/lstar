@@ -14,6 +14,7 @@ class State:
 
         self.name = name
         self.edges = edges
+        self.isAccepting = False
 
     def __str__(self):
         return f'[State: {self.name}, edges: {[f"{a}:{n.name}" for a, n in self.edges.items()]}]'
@@ -29,12 +30,13 @@ class State:
 
     def next(self, action):
         if action in self.edges.keys():
-            return self.edges.get(action)
+            nextstate = self.edges.get(action)
+            return nextstate, nextstate.isAccepting
         else:
             raise Exception(f'Invalid action {action} from state {self.name}')
 
     def next_state(self, action):
-        return next(action)
+        return self.next(action)[0]
 
 
 # A statemachine can represent a system under learning
@@ -46,6 +48,8 @@ class DFA(SUL):
         if not isinstance(accepting_states, Iterable):
             accepting_states = [accepting_states]
         self.accepting_states = accepting_states
+        for state in self.accepting_states:
+            state.isAccepting = True
 
     def __str__(self):
         states = self.get_states()
@@ -92,7 +96,7 @@ class DFA(SUL):
 
         for input in inputs:
             try:
-                nextstate = self.state.next(input)
+                nextstate = self.state.next_state(input)
                 #print(f'({self.state.name}) ={input}=> ({nextstate.name})')
                 self.state = nextstate
             except Exception as e:
