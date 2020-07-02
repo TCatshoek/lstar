@@ -118,6 +118,11 @@ rers/industrial
 rers/rers_19_industrial_reachability_training
 rers/*.zip*
 
+afl/TrainingSeqReachRers2019
+
+*.png
+*.pdf
+
 # cache files
 cache/
 checkpoints/

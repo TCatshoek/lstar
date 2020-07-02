@@ -31,11 +31,13 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
 
         assert m >= n, "hypothesis has more states than w-method bound"
 
-        depth = m - n + 1
+        depth = m - n
 
         print('Attempting to determine distinguishing set')
         W = get_distinguishing_set(fsm)
-        #W.add(tuple())
+        if len(W) < 1:
+            W.add(tuple())
+
         print('distinguishing:', W)
         P = get_state_cover_set(fsm)
         print('state cover:', P)
@@ -55,11 +57,12 @@ class WmethodEquivalenceChecker(EquivalenceChecker):
                         test_sequence = p + x + w
                         print(test_sequence)
                         equivalent, counterexample = self._are_equivalent(fsm, test_sequence)
+                        print("Test sequence: ", test_sequence)
                         if not equivalent:
                             print("COUNTEREXAMPLE:", counterexample)
                             return equivalent, counterexample
 
-        return equivalent, counterexample
+        return equivalent, None
 
 
 # Wmethod EQ checker with early stopping
@@ -232,7 +235,7 @@ class SmartWmethodEquivalenceCheckerV2(EquivalenceChecker):
 
         while len(acc_seq_tasks) > 0:
             access_sequence, to_visit = acc_seq_tasks.popleft()
-            print("[info] Trying access sequence:", access_sequence)
+            # bprint("[info] Trying access sequence:", access_sequence)
             assert len(to_visit) > 0
 
             cur = to_visit.popleft()
@@ -257,13 +260,13 @@ class SmartWmethodEquivalenceCheckerV2(EquivalenceChecker):
 
             if len(to_visit) > 0:
                 acc_seq_tasks.append((access_sequence, to_visit))
-            else:
-                print(access_sequence)
+            #else:
+                #print(access_sequence)
 
         return equivalent, counterexample
 
     def _are_equivalent(self, fsm, input):
-        print("[info] Testing:", input)
+        #print("[info] Testing:", input)
         fsm.reset()
         hyp_output = fsm.process_input(input)
         self.sul.reset()
