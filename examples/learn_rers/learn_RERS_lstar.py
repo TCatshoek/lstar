@@ -27,7 +27,7 @@ sul = RersTrieCache(
 # early stopping on invalid inputs, which speeds things up a lot
 #eqc = RersWmethodEquivalenceChecker(sul, False, m=15)
 eqc = SmartWmethodEquivalenceChecker(sul,
-                                     horizon=13,
+                                     horizon=10,
                                      stop_on={'invalid_input'},
                                      stop_on_startswith={'error'})
 # Set up the teacher, with the system under learning and the equivalence checker
@@ -47,5 +47,5 @@ hyp = learner.run(
 
 print("SUCCES", check_result(hyp, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 
-hyp.render_graph(tempfile.mktemp('.gv'))
+hyp.render_graph(render_options={'ignore_self_edges': ['error', 'invalid']})
 
