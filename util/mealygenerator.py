@@ -1,8 +1,8 @@
 import random
 
 from suls.mealymachine import MealyState, MealyMachine
-from util.distinguishingset import get_distinguishing_set, get_dset_outputs, check_distinguishing_set
-
+from util.distinguishingset import get_dset_outputs, check_distinguishing_set
+from util.minsepseq import get_distinguishing_set
 
 def MakeRandomMealyMachine(n_states, A_in, A_out):
     states = [MealyState(f's{x + 1}') for x in range(n_states)]

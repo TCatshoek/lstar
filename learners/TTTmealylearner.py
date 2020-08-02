@@ -34,6 +34,8 @@ class TTTMealyLearner(TTTAbstractLearner):
         # state accessed by the given sequence
         if cur_dtree_node is None:
             new_acc_seq = sequence
+            assert new_acc_seq not in self.S
+            print("Created new state:", f's{len(self.S)}')
             new_state = State(f's{len(self.S)}')
             new_dtree_node = self.DTree.createLeaf(new_state)
             self.S[new_acc_seq] = new_state
@@ -73,6 +75,15 @@ class TTTMealyLearner(TTTAbstractLearner):
 
             n = n2
 
+        # Add spanning tree transitions
+        for access_seq, state in self.S.items():
+            if len(access_seq) > 0:
+                ancestor_acc_seq = access_seq[0:-1]
+                ancestor_state = self.S[ancestor_acc_seq]
+                a = access_seq[-1]
+                output = self.query(ancestor_acc_seq + (a,))
+                ancestor_state.add_edge(a, output, state, override=True)
+
         # Find accepting states
         # accepting_states = [state for access_seq, state in self.S.items() if self.query(access_seq)]
 
@@ -87,6 +98,9 @@ class TTTMealyLearner(TTTAbstractLearner):
 
         # Store new state and access sequence
         q_new_acc_seq = self.get_access_sequence(u) + a
+        # if q_new_acc_seq in self.S:
+        #     q_new_state = self.S[q_new_acc_seq]
+        # else:
         q_new_state = State(f's{len(self.S)}')
 
         assert q_new_acc_seq not in self.S

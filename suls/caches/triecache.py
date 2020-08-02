@@ -8,7 +8,7 @@ from pygtrie import StringTrie
 # Simple cache wrapper for SULs
 # Uses a pygtrie trie as storage, slower than a dict but more memory efficient
 class TrieCache(AbsCache):
-    def __init__(self, sul: SUL = None, separator=" ", storagepath=None, saveinterval=15):
+    def __init__(self, sul: object = None, separator: object = " ", storagepath: object = None, saveinterval: object = 15) -> object:
         super().__init__(sul, storagepath, saveinterval)
         self.cache = StringTrie(separator=separator)
         self.separator = separator

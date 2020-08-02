@@ -1,24 +1,34 @@
 import time
 from numpy.random.mtrand import choice
+
+from suls.caches.dictcache import DictCache
 from suls.caches.rerstriecache import RersTrieCache
 from suls.rersconnectorv4 import RERSConnectorV4
+from suls.rerssoconnector import RERSSOConnector
 
 problem = "Problem12"
 cache = 'cache'
-cached_sul = RersTrieCache(
+# cached_sul = RersTrieCache(
+#     RERSConnectorV4(f'../rers/TrainingSeqReachRers2019/{problem}/{problem}'),
+#     storagepath=cache
+# )
+cached_sul = DictCache(
     RERSConnectorV4(f'../rers/TrainingSeqReachRers2019/{problem}/{problem}'),
     storagepath=cache
 )
+sul = RERSSOConnector(f'../rers/TrainingSeqReachRers2019/{problem}/{problem}.so')
 
-sul = RERSConnectorV4(f'../rers/TrainingSeqReachRers2019/{problem}/{problem}')
+n = 1000
+w = 100
 
-num_samples = 10000
-depth = 100
+print("generating testcases")
 
-# Generate queries
-A = list(sul.get_alphabet())
-queries = choice(A, size=(num_samples, depth))
+# Generate a bunch of random keys
+queries = []
+for i in range(n):
+    queries.append(tuple(choice(sul.get_alphabet(), w)))
 
+print("done generating")
 # Time empty cache
 start = time.perf_counter()
 for query in queries:

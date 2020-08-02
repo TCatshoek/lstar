@@ -114,11 +114,22 @@ venv.bak/
 rers/SeqReachabilityRers2019
 rers/TrainingSeqReachRers2019
 rers/IndReachabilityRers2019
+rers/SeqReachabilityRers2020
+rers/TrainingSeqReachRers2020
+rers/IndReachabilityRers2020
 rers/industrial
 rers/rers_19_industrial_reachability_training
 rers/*.zip*
 
 afl/TrainingSeqReachRers2019
+afl/SeqReachabilityRers2019
+afl/IndReachabilityRers2019
+afl/TrainingSeqReachRers2020
+afl/SeqReachabilityRers2020
+afl/IndReachabilityRers2020
+afl/industrial
+afl/rers_19_industrial_reachability_training
+afl/*.zip*
 
 *.png
 *.pdf
@@ -142,3 +153,14 @@ checkpoint*/
 # Angr and klee experiments
 angr/
 klee/
+
+# LTL checking models
+*.aut
+*.lps
+*.ltl
+*.mcrl2
+*.smv
+
+# Core dumps >_>
+*core.*
+

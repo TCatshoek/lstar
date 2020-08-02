@@ -4,7 +4,7 @@ from typing import Tuple, Iterable
 
 from pygtrie import PrefixSet
 
-from util.distinguishingset import get_distinguishing_set
+from util.minsepseq import get_distinguishing_set
 from util.transitioncover import get_state_cover_set
 from equivalencecheckers.equivalencechecker import EquivalenceChecker
 from suls.dfa import DFA
@@ -15,6 +15,7 @@ from itertools import product, chain
 from tqdm import tqdm
 from suls.rersconnectorv2 import RERSConnectorV2
 from collections import deque
+import util.statstracker as stats
 
 # Implements chow's W-method for equivalence checking
 class WmethodEquivalenceChecker(EquivalenceChecker):
@@ -271,6 +272,7 @@ class SmartWmethodEquivalenceCheckerV2(EquivalenceChecker):
         hyp_output = fsm.process_input(input)
         self.sul.reset()
         sul_output = self.sul.process_input(input)
+        stats.increment('test_query')
 
         if self._teacher is not None:
             self._teacher.test_query_counter += 1

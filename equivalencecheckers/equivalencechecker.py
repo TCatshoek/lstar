@@ -32,7 +32,9 @@ class EquivalenceChecker(ABC):
         if self._teacher is not None:
             self._teacher.test_query_counter += 1
 
-        #print(sul_output)
+        # print()
+        # print("SUL output:", sul_output)
+        # print("HYP output:", hyp_output)
 
         equivalent = hyp_output == sul_output
         if not equivalent:

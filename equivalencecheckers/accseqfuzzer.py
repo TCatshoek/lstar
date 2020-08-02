@@ -4,7 +4,7 @@ from numpy.random.mtrand import choice
 
 from equivalencecheckers.equivalencechecker import EquivalenceChecker
 from suls.sul import SUL
-from util.distinguishingset import get_distinguishing_set
+from util.minsepseq import get_distinguishing_set
 from util.transitioncover import get_state_cover_set
 
 

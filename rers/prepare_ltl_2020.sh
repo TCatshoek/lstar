@@ -1,14 +1,13 @@
 #!/bin/bash
 
-rm -rf TrainingSeqReachRers2019Patched
-rm -rf TrainingSeqReachRers2019
+rm -rf SeqLtlRers2020
 
-wget http://rers-challenge.org/2019/problems/sequential/TrainingSeqReachRers2019.zip
-unzip TrainingSeqReachRers2019.zip
-rm TrainingSeqReachRers2019.zip
+wget http://rers-challenge.org/2020/problems/sequential/SeqLtlRers2020.zip
+unzip -d SeqLtlRers2020 SeqLtlRers2020.zip
+rm SeqLtlRers2020.zip
 rm -rf __MACOSX
 
-cd TrainingSeqReachRers2019
+cd SeqLtlRers2020
 
 for problem in *
 do

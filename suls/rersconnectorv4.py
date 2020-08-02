@@ -71,14 +71,13 @@ class RERSConnectorV4(SUL):
             if len(line) > 0:
                 if match := re.match("[0-9]+$", line):
                     result = match.group(0)
-                elif re.match("Invalid input:", line):
-                    self.invalid_cache.add(inputs[0:idx + 1])
-                    result = "invalid_input"
                 elif match := re.match("error_[0-9]+", line):
                     tmp = match.group(0)
                     self.error_cache[" ".join(inputs)] = tmp
                     return tmp
-
+                elif re.match("Invalid input:", line):
+                    self.invalid_cache.add(inputs[0:idx + 1])
+                    result = "invalid_input"
                 if "error" not in lines[idx + 1]:
                     self.cache[" ".join(inputs[0:idx + 1])] = result
 
@@ -110,8 +109,8 @@ class RERSConnectorV4(SUL):
         #     return value
 
         # If no cache hit, actually send the input to the SUT
-        print(f"\r[Query] {inputs}", end="", flush=True)
-        sys.stdout.flush()
+        #print(f"\r[Query] {inputs}", end="", flush=True)
+        #sys.stdout.flush()
         return self._interact(inputs)
 
     def reset(self):
@@ -126,12 +125,12 @@ class RERSConnectorV4(SUL):
 
 if __name__ == "__main__":
 
-    n = 1000
+    n = 10000
 
     #asyncio.run(main(n))
 
-    path = "/home/tom/projects/lstar/rers/TrainingSeqReachRers2019/Problem11/Problem11_patched"
-    r = RERSConnectorV3(path)
+    path = "/home/tom/projects/lstar/rers/TrainingSeqReachRers2019/Problem11/Problem11"
+    r = RERSConnectorV4(path)
     alphabet = r.get_alphabet()
 
     from numpy.random import choice
@@ -139,7 +138,7 @@ if __name__ == "__main__":
 
     inputs = []
     for i in range(n):
-        inputs.append(list(choice(alphabet, 10)))
+        inputs.append(list(choice(alphabet, 100)))
 
     #inputs = [['9', '7', '7'], ['8', '9', '7', '7']]
     start = time.perf_counter()

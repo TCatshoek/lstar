@@ -15,9 +15,11 @@ from teachers.teacher import Teacher
 from typing import Set, Tuple, Optional, Iterable, Callable, List
 from tabulate import tabulate
 
+import util.statstracker as stats
+
 
 class DTreeNode:
-    def __init__(self, isLeaf, dTree, suffix=None, state=None, temporary=False, isRoot=False):
+    def __init__(self, isLeaf, dTree, suffix=None, state=None, temporary=False, isRoot=False, id=None):
         self.suffix = suffix
         self.state = state
         self.isLeaf = isLeaf
@@ -36,7 +38,10 @@ class DTreeNode:
         self.dTree = dTree
         self.isRoot = isRoot
 
-        self.id = dTree.getID()
+        if id is None:
+            self.id = dTree.getID()
+        else:
+            self.id = id
 
     def add(self, value, node):
         self.children[value] = node
@@ -69,8 +74,13 @@ class DTreeNode:
 
         new_self = DTreeNode(
             self.isLeaf, self.dTree, self.suffix,
-            self.state, self.isTemporary, self.isRoot
+            self.state, self.isTemporary, self.isRoot,
+            id=self.id
         )
+
+        # These will be overwritten unless the cloned node is the root of the block
+        # new_self.parent = self.parent
+        # new_self.parentLabel = self.parentLabel
 
         for output, child in self.children.items():
             new_child = child.clone()
@@ -79,7 +89,8 @@ class DTreeNode:
 
             new_self.children[output] = new_child
 
-        new_self.id = self.id
+        # if new_self.parent is None and not new_self.isRoot:
+        #     print("is this the root?", self.id)
 
         return new_self
 
@@ -171,7 +182,7 @@ class DTree:
                 assert len(intersection) == 1
                 return intersection.pop()
 
-    def render_graph(self, filename=None, format='pdf'):
+    def render_graph(self, filename=None, format='pdf', draw_parent=False):
         if filename is None:
             filename = tempfile.mktemp('.gv')
         g = Digraph('G', filename=filename)
@@ -191,9 +202,10 @@ class DTree:
                 name = node.state.name
                 name += f" ID:{node.id}"
                 g.node(str(id(node)), label=name, shape='square')
-            # Debug parent connections
-            # if node.parent is not None:
-            #     g.edge(str(id(node)), str(id(node.parent)), label=f'P:{node.parentLabel}')
+
+            #Debug parent connections
+            if draw_parent and node.parent is not None:
+                g.edge(str(id(node)), str(id(node.parent)), label=f'P:{node.parentLabel}')
 
         # Draw edges
         for node in self.nodes:
@@ -259,6 +271,7 @@ class Block:
 
     # Extracts the subtree of all the nodes in the block that are marked with the given output
     def extract_subtree(self, mark):
+        print("Extracting subtree for mark", mark)
         # Clone the block
         root = self.root.clone()
 
@@ -283,9 +296,12 @@ class Block:
             if len(cur_node.children) == 1 and not cur_node.isLeaf:
                 to_collapse.append(cur_node)
 
-        # Collapse nodes that only have one child:
+        #Collapse nodes that only have one child:
         for cur_node in to_collapse:
+            print('collapsing', cur_node.id)
             assert not cur_node.isLeaf
+
+            assert len(list(cur_node.children.items())) == 1
 
             out, child = list(cur_node.children.items())[0]
             parent = cur_node.parent
@@ -303,6 +319,7 @@ class Block:
             cur_node.children[out] = None
             cur_node.parent = None
 
+        print('root parent is', root.parent.id if root.parent else None)
         return root
 
 
@@ -334,6 +351,8 @@ class Block:
                     self.marks[node.id].add(leaf_output)
                 else:
                     self.marks[node.id] = {leaf_output}
+
+        print(self.marks)
 
 
     # Checks if this block has a leaf node containing the given state
@@ -372,7 +391,7 @@ class TTTAbstractLearner(Learner, ABC):
         self.DTree = DTree(self.S[tuple()])
 
         # Query cache
-        # self.T = {}
+        self.T = {}
 
         # Alphabet A
         self.A = set([(x,) for x in teacher.get_alphabet()])
@@ -627,7 +646,7 @@ class TTTAbstractLearner(Learner, ABC):
             hyp_output = hyp.process_input(acc_seq + dist_seq)
 
             if hyp_output != leaf_output:
-                print("Internal counterexample:", acc_seq + dist_seq, hyp_output, leaf_output)
+                print("Internal counterexample:", acc_seq, dist_seq, hyp_output, leaf.state.name, leaf_output)
                 return False, acc_seq + dist_seq
 
         return True, None
@@ -673,10 +692,10 @@ class TTTAbstractLearner(Learner, ABC):
                         # Output wise?
                         if x_output != y_output:
                             splitter = a
-                            print("Output wise")
+                            print(f"Output wise ({x.state.name}, {y.state.name}) -> ({x_output}, {y_output})")
                             break
 
-                        # State wise?
+                        #State wise?
                         x_blk, x_leaf = None, None
                         y_blk, y_leaf = None, None
                         for blk in cur_blocks:
@@ -695,7 +714,7 @@ class TTTAbstractLearner(Learner, ABC):
                             lca = self.DTree.getLowestCommonAncestor(x_leaf, y_leaf)
 
                             splitter = a + lca.suffix
-                            print("State wise")
+                            print(f"State wise ({x.state.name}, {y.state.name}) -> ({x_next.name}, {y_next.name})")
                             break
 
                     if splitter is not None:
@@ -704,7 +723,7 @@ class TTTAbstractLearner(Learner, ABC):
                 if splitter is None:
                     continue
 
-                print("Splitter found!", splitter)
+                print("Splitter found!", splitter, "for block root ID:", cur_block.root.id)
 
                 # now that we have a splitter, we can perform a split! yay!
                 # first, we need to mark the block
@@ -725,6 +744,12 @@ class TTTAbstractLearner(Learner, ABC):
                 # refresh the DTree so it can update it's bookkeeping
                 self.DTree.refresh_nodes()
 
+                self.allstatesunique()
+
+                # "Close transitions"
+                # Need to do this so the hypothesis stays in sync with the DTree
+                self.construct_hypothesis()
+
                 could_still_finalize = True
 
 
@@ -739,7 +764,7 @@ class TTTAbstractLearner(Learner, ABC):
 
     # Membership query
     def query(self, query):
-        return self.teacher.member_query(query)
+        #return self.teacher.member_query(query)
         # print("Query:", query)
         if query in self.T.keys():
             # print("Returning cached")
@@ -772,7 +797,7 @@ class TTTAbstractLearner(Learner, ABC):
         for leaf in self.DTree.getLeaves():
             leaf_states.append(leaf.state.name)
 
-        assert len(leaf_states) == len(set(leaf_states)), 'Duplicate leaf :('
+        assert len(leaf_states) == len(set(leaf_states)), f'Duplicate leaf :( {set([x for x in leaf_states if leaf_states.count(x) > 1])}'
 
     def step(self):
 
@@ -799,8 +824,9 @@ class TTTAbstractLearner(Learner, ABC):
 
         self.allstatesunique()
 
-        self.finalize_discriminators()
-
+        #self.DTree.render_graph('ttt_dtree_before')
+        #self.finalize_discriminators()
+        #self.DTree.render_graph('ttt_dtree_after')
         # self.DTree.render_graph('ttt_dtree_finalized', format='png')
 
         print("Done:", done)
@@ -816,6 +842,8 @@ class TTTAbstractLearner(Learner, ABC):
 
         while not done:
             done, hyp = self.step()
+
+            stats.count_hypothesis_stats(hyp)
 
             if on_hypothesis is not None:
                 on_hypothesis(hyp)

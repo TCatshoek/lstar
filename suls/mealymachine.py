@@ -1,3 +1,4 @@
+
 # Need this to fix types
 from __future__ import annotations
 
@@ -159,7 +160,11 @@ class MealyMachine(SUL):
                             and not(any([output.startswith(x) for x in ignore_edges])):
                         g.edge(cur_state.name, other_state.name, label=f'{action}/{output}')
 
-            g.render(format=format, view=True)
+            if format != None:
+                g.render(format=format, view=True)
+            else:
+                g.save()
+
 
         renderthread = threading.Thread(target=render, args=(filename, render_options))
         renderthread.start()

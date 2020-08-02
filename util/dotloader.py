@@ -14,7 +14,10 @@ import re
 
 def _process_mealy_node(match, context):
     node = match.group(1).strip('"')
-    node_properties = dict([tuple(x.split('=')) for x in match.group(2).strip().split(' ')])
+    if len(match.groups()) > 1:
+        node_properties = dict([tuple(x.split('=')) for x in match.group(2).strip().split(' ')])
+    else:
+        node_properties = {}
     context['nodes'].append((node, node_properties))
 
 def _process_mealy_edge(match, context):
@@ -26,10 +29,18 @@ def _process_mealy_start(match, context):
     start = match.group(1)
     context['start'] = start.strip('"')
 
-mealy_parser = [
+# Loads the dot files in rers/industrial
+industrial_mealy_parser = [
     (r'^\s*([a-zA-Z0-9"^(\->)]*)\s\[((?:\w*=\S*\s*)+)\];', _process_mealy_node),
     (r'^\s*(.*\s*->\s*\S*)\s*\[((?:\w*=\S*\s*)+)\];', _process_mealy_edge),
     (r'^\s*(?:.*\s*->\s*(\S*));', _process_mealy_start)
+]
+
+# Loads hypotheses saved by util/savehypothesis
+hyp_mealy_parser = [
+    (r'^\s*([a-zA-Z0-9]+)$', _process_mealy_node),
+    (r'^\s*(.*\s*->\s*\S*)\s*\[((?:\w*=\S*\s*)+)\]', _process_mealy_edge),
+    (r'^\s*(?:__start0\s*->\s*(\S*))', _process_mealy_start)
 ]
 
 def _parse(process, line, context):
@@ -37,12 +48,12 @@ def _parse(process, line, context):
         if (match := re.match(regex, line)) is not None:
             return process_func(match, context)
 
-def load_mealy_dot(path):
+def load_mealy_dot(path, parse_rules=industrial_mealy_parser):
     # Parse the dot file
     context = {'nodes': [], 'edges': []}
     with open(path, 'r') as file:
         for line in file.readlines():
-            _parse(mealy_parser, line, context)
+            _parse(parse_rules, line, context)
 
     # Build the mealy graph
     nodes = {name: MealyState(name) for (name, _) in context['nodes']}
