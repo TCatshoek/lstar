@@ -24,7 +24,8 @@ def patch(path):
             # Find var declarations
             # (I'm so sorry for this regular expression stuff,
             # I really wanted to use a legit c parser but couldn't get it to work)
-            if (result := re.search("(int \*?[a-z0-9]+\[?\]?)\s+=\s+(-?\{?[a-z]?([0-9]+,?)+\}?;)", line)) is not None:
+            result = re.search("(int \*?[a-z0-9]+\[?\]?)\s+=\s+(-?\{?[a-z]?([0-9]+,?)+\}?;)", line)
+            if result is not None:
                 # Ignore the inputs line
                 if re.search("inputs\[\]", line) is not None:
                     continue
@@ -37,7 +38,8 @@ def patch(path):
                 rh = result.group(2)
 
                 # Handle array decl
-                if arr := re.search("(int ([a-z0-9]+))\[\]", lh):
+                arr = re.search("(int ([a-z0-9]+))\[\]", lh)
+                if arr:
                     # Count amount of  elements
                     n_el = rh.count(',') + 1
                     var = f'{arr.group(1)}[{n_el}];'
@@ -55,11 +57,11 @@ def patch(path):
                 #print("Var:", var, "Ass:", assignment)
 
             # Find where to insert resets
-            if (result := re.search("while\(1\)", line)) is not None:
+            if re.search("while\(1\)", line) is not None:
                 #print(result.string.strip(), idx)
                 initialresetpos = idx
 
-            if (result := re.search("if\(\(input != [0-9]+\)", line)) is not None:
+            if re.search("if\(\(input != [0-9]+\)", line) is not None:
                 #print(result.string.strip(), idx)
                 manualresetpos = idx
 
@@ -131,6 +133,12 @@ lines = replace_main(lines)
 allowed_inputs = get_allowed_inputs(lines)
 check_index = lines.index('		    $checkline\n')
 lines[check_index] = generate_check_line(allowed_inputs)
+
+# Remove printfs since we don't need them
+lines = [re.sub(r'\s*printf\(.*\);\s*fflush\(stdout\);', '', line) for line in lines]
+
+# Also remove the invalid input print
+lines = [line for line in lines if "    if( cf==1 ) " not in line and "fprintf" not in line]
 
 newpath = Path(path).parent.joinpath(Path(path).stem).as_posix() + "_afl.c"
 
