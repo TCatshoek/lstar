@@ -9,8 +9,11 @@ from suls.rerssoconnector import RERSSOConnector
 import re
 
 def parse_file(path):
-    with Path(path).open('rb') as file:
-        return [int(x) for x in file.read()]
+    if Path(path).exists():
+        with Path(path).open('rb') as file:
+            return [int(x) for x in file.read()]
+    else:
+        print(f"{path} eaten by running afl instance?")
 
 def get_name(testcase, prefix_offset=-3):
     return f'{testcase.parts[prefix_offset]}/{testcase.name}'
@@ -26,7 +29,7 @@ def run_minimize(testcase, outdir, binary_path):
 
 def strip_invalid(testcase, alphabet):
     alphabet = [int(x) for x in alphabet]
-    return [x for x in testcase if x in alphabet]
+    return [str(x) for x in testcase if x in alphabet]
 
 def ensure_crash(testcase, sul):
     # testbytes = str(bytes(testcase)).strip('"b').strip('\'')
@@ -62,7 +65,7 @@ class AFLUtils:
         collection_dir.mkdir(exist_ok=True)
 
         queue_files = [x for x in self.root_dir.joinpath("output").glob('**/id:*') if
-             x.match(f'**/queue/**') and not x.match('**/leaner*/**')]
+             x.match(f'**/queue/**') and not x.match('**/learner*/**')]
 
         for idx, queue_file in enumerate(queue_files):
             shutil.copy(str(queue_file), str(collection_dir.joinpath(f'{queue_file.name}_{idx}')))
@@ -100,13 +103,36 @@ class AFLUtils:
 
         return testcases
 
+    def get_testset(self):
+        queue_files = [x for x in self.root_dir.joinpath("output").glob('**/id:*') if
+                       x.match(f'**/queue/**') and not x.match('**/learner*/**')
+                       and get_name(x) not in self.queue_cache]
+
+        for queue_file in queue_files:
+            name = get_name(queue_file)
+            self.queue_cache[name] = parse_file(queue_file)
+
+        testcases = self.queue_cache.values()
+
+        # Remove characters not in alphabet and convert to strings
+        testcases = [strip_invalid(testcase, self.alphabet) for testcase in testcases]
+
+        # Remove zero length testcases
+        testcases = [x for x in testcases if len(x) > 0]
+
+        print(f"Imported {len(testcases)} queue test cases!")
+
+        return testcases
+
+
     def get_minimized_crashset(self):
         trimmed_dir = self.root_dir.joinpath("trimmed")
         trimmed_dir.mkdir(exist_ok=True)
 
         # Gather crashes in output directory
         crashes = [x for x in self.root_dir.joinpath("output").glob('**/id:*') if
-                   x.match(f'**/crashes/**') and not x.match('**/leaner*/**') and get_name(x) not in self.error_cache]
+                   x.match(f'**/crashes/**') and not x.match('**/learner*/**')
+                   and get_name(x) not in self.error_cache]
 
         # Minimize the crashing inputs
         args = [(x, trimmed_dir, self.binary_path)
@@ -152,7 +178,7 @@ class AFLUtils:
 
         # Gather crashes in output directory
         crashes = [x for x in self.root_dir.joinpath("output").glob('**/id:*') if
-                   x.match(f'**/crashes/**') and not x.match('**/leaner*/**') and get_name(x) not in self.error_cache]
+                   (x.match(f'**/crashes/**') or 'crashes' in str(x)) and not x.match('**/learner*/**') and get_name(x) not in self.error_cache]
 
         for crash in crashes:
             if return_time_date:
@@ -166,23 +192,49 @@ class AFLUtils:
         # Remove zero length testcases
         crashset = [x for x in crashset if len(x) > 0]
 
+        # Check what errors are reached
+        reached_errors = set()
+        for crashing_input in crashset:
+            crashing_input = [str(x) for x in crashing_input]
+            self.sul.reset()
+            output = self.sul.process_input(crashing_input)
+            if 'error' in output:
+                reached_errors.add(output)
+
+        print(f'Imported {len(crashset)} crashing test cases!',
+              f'{len(reached_errors)} Unique crashes')
+
         if return_time_date:
             return crashset, time_dates
         else:
             return crashset
 
-    def gather_reached_errors(self, return_time_date=False):
+    def gather_reached_errors(self, return_time_date=False, return_traces=False):
         errors = []
 
         for (crashing_input, last_modified) in list(zip(*self.get_crashset(return_time_date=True))):
             crashing_input = [str(x) for x in crashing_input]
             self.sul.reset()
             output = self.sul.process_input(crashing_input)
+
+            to_append = tuple()
+
             if "error" in output:
+                to_append += (output,)
+
+                if return_traces:
+                    to_append += (crashing_input,)
+
                 if return_time_date:
-                    errors.append((output, last_modified))
-                else:
-                    errors.append(output)
+                    to_append += (last_modified,)
+
+                if len(to_append) == 1:
+                    to_append = to_append[0]
+
+                errors.append(to_append)
+            else:
+                print("No error for ", crashing_input, ':(')
+
 
         return errors
 
@@ -191,7 +243,7 @@ class AFLUtils:
     # to the output dir
     def get_start_date_time(self):
         origs = [x for x in self.root_dir.joinpath("output").glob('**/id:000000,orig*') if
-                   x.match(f'**/queue/**') and not x.match('**/leaner*/**')]
+                   x.match(f'**/queue/**') and not x.match('**/learner*/**')]
 
         times = [x.stat().st_mtime for x in origs]
         return min(times)
@@ -216,6 +268,32 @@ class AFLUtils:
         times = [x.stat().st_mtime for x in max_ids]
 
         return max(times)
+
+    def minimize_error_trace(self, trace):
+        trace = list(trace)
+        trimmed_trace = trace.copy()
+        deletion_shift = 0
+        inv_idxes = []
+        # Remove "invalid output"s
+        for i in range(1, len(trace) + 1):
+            self.sul.reset()
+            output = self.sul.process_input(trace[0:i])
+            if output == "invalid_input":
+                inv_idxes.append(i - 1)
+        for inv_idx in inv_idxes:
+            del trimmed_trace[inv_idx - deletion_shift]
+            deletion_shift += 1
+
+        self.sul.reset()
+        og_output = self.sul.process_input(trace)
+        self.sul.reset()
+        new_output = self.sul.process_input(trimmed_trace)
+
+        assert og_output == new_output
+        assert 'error' in og_output
+
+        return trimmed_trace
+
 
 
 if __name__ == "__main__":

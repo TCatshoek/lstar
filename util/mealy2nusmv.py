@@ -1,5 +1,6 @@
 from suls.mealymachine import MealyMachine, MealyState
 import re
+from util.spot_ltl_translate import rewrite_weakuntil
 from itertools import chain
 #
 #
@@ -121,7 +122,7 @@ from itertools import chain
 #     #     file.writelines(smvlines)
 
 
-def mealy2nusmv_withintermediate(fsm: MealyMachine, path):
+def mealy2nusmv_withintermediate(fsm: MealyMachine):
 
     # Collect fsm info
     states = fsm.get_states()
@@ -270,23 +271,26 @@ def rersltl2smv_withintermediate(ltlpath, mappingpath):
             # Grab LTL rules
             if not line.startswith('#') and len(line.strip()) > 0:
 
+                # Use spot to rewrite weak until formula if present
+                line = rewrite_weakuntil(line)
+
                 # Ez replacements
                 line = line\
                     .replace('true', 'TRUE')\
                     .replace('false', 'FALSE')\
-
-                # NuSMV does not have weak until (rers WU), so we rewrite it
-                # from p WU q -> (p U q | G p)
-                # This regex is bad and fragile and if we did it the right way
-                # we would parse the rules into an AST and use rewrite rules
-                # but no time for that
-                w_regex = r'([a-zA-z!]+) W ([a-zA-z!]+)'
-                match = re.search(w_regex, line)
-                while match:
-                    p = match.group(1)
-                    q = match.group(2)
-                    line = re.sub(w_regex, f'({p} U {q} | G {p})', line, count=1)
-                    match = re.search(w_regex, line)
+                #
+                # # NuSMV does not have weak until (rers WU), so we rewrite it
+                # # from p WU q -> (p U q | G p)
+                # # This regex is bad and fragile and if we did it the right way
+                # # we would parse the rules into an AST and use rewrite rules
+                # # but no time for that
+                # w_regex = r'([a-zA-z!]+) W ([a-zA-z!]+)'
+                # match = re.search(w_regex, line)
+                # while match:
+                #     p = match.group(1)
+                #     q = match.group(2)
+                #     line = re.sub(w_regex, f'({p} U {q} | G {p})', line, count=1)
+                #     match = re.search(w_regex, line)
 
                 # Replace variables
                 for invar in inputs:
@@ -298,8 +302,7 @@ def rersltl2smv_withintermediate(ltlpath, mappingpath):
                 # NuSMV uses V for release, rers uses R
                 line = re.sub(' R ', ' V ', line)
 
-
-
+                print('{:10}'.format("Written:"), line.strip())
                 ltl_lines.append(line)
 
     return [f'LTLSPEC NAME rule{i} := {line}' for i, line in enumerate(ltl_lines)]
@@ -334,8 +337,6 @@ if __name__ == "__main__":
     s3.add_edge('b', 'c', s1)
 
     mm = MealyMachine(s1)
-
-
 
     constrpath = '/home/tom/projects/lstar/rers/TrainingSeqLtlRers2020/Problem1/constraints-Problem1.txt'
     mappingpath= '/home/tom/projects/lstar/rers/TrainingSeqLtlRers2020/Problem1/Problem1_alphabet_mapping_C_version.txt'

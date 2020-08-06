@@ -26,10 +26,29 @@ from pathlib import Path
 from shutil import rmtree
 from afl.util import decode_afl_file, strip_invalid, trim
 import pickle
+from util.minsepseq import get_distinguishing_set
 
+from enum import Enum, auto
+
+# The types of feedback to afl that can be configured
+# ACC_SEQ puts all access sequences of the hypothesis in the queue of afl
+# W_TRACES does the same, but creates a w-set with discriminating sequences
+# NONE doesn't bother giving any feedback to afl
+class Feedback(Enum):
+    ACC_SEQ = auto()
+    W_TRACES = auto()
+    NONE = auto()
+
+class EQCheckType(Enum):
+    ERRORS = auto()
+    QUEUE = auto()
+    BOTH = auto()
 
 class AFLEquivalenceCheckerV2(EquivalenceChecker):
-    def __init__(self, sul: SUL, afl_dir, bin_path, name="learner01"):
+    def __init__(self, sul: SUL, afl_dir, bin_path,
+                 feedback=Feedback.ACC_SEQ,
+                 eqchecktype=EQCheckType.ERRORS,
+                 name="learner01"):
 
         super().__init__(sul)
 
@@ -37,17 +56,21 @@ class AFLEquivalenceCheckerV2(EquivalenceChecker):
 
         self.afl_dir = Path(afl_dir)
         self.bin_path = Path(bin_path)
-        assert self.afl_dir.exists()
-        assert self.bin_path.exists()
+
+        assert self.afl_dir.exists(), f"AFL dir does not exist - {self.afl_dir}"
+        assert self.bin_path.exists(), f"Binary to fuzz does not exist - {self.bin_path}"
 
         self.aflutils = AFLUtils(afl_dir, bin_path, self.sul_alphabet, sul)
 
         # Keep track of file names for access sequences [maps state names to id for file names]
         self.state_id = {}
+        # Keep track of which input sequences have already been written to afl as feedback
+        self.feedback_seqs = set()
 
         self.name = name
 
-
+        self.fbmethod = feedback
+        self.eqchecktype = eqchecktype
 
     def _update_afl_queue(self, fsm: Union[DFA, MealyMachine]):
         # Make sure we have a folder to put our stuff in
@@ -55,38 +78,70 @@ class AFLEquivalenceCheckerV2(EquivalenceChecker):
         queuepath.mkdir(exist_ok=True, parents=True)
 
         state_cover = get_state_cover_set(fsm)
+
         for acc_seq in state_cover:
-            fsm.reset()
-            fsm.process_input(acc_seq)
+            acc_seq = tuple(acc_seq)
 
-            if acc_seq in self.state_id:
-                file_id = self.state_id[acc_seq]
-            else:
-                self.state_id[acc_seq] = len(self.state_id)
-                file_id = self.state_id[acc_seq]
+            if acc_seq not in self.feedback_seqs:
+                filename = f'id:{str(len(self.feedback_seqs)).rjust(6, "0")}'
+                with open(queuepath.joinpath(filename), 'wb') as file:
+                    for a in acc_seq:
+                        file.write(bytes([int(a)]))
+                self.feedback_seqs.add(acc_seq)
 
-            filename = f'id:{str(file_id).rjust(6, "0")}'
+    def _update_afl_queue_wtraces(self, fsm: Union[DFA, MealyMachine]):
+        # Make sure we have a folder to put our stuff in
+        queuepath = self.afl_dir.joinpath(f'output/{self.name}/queue')
+        queuepath.mkdir(exist_ok=True, parents=True)
 
-            with open(queuepath.joinpath(filename), 'wb') as file:
-                for a in acc_seq:
-                    file.write(bytes([int(a)]))
+        state_cover = get_state_cover_set(fsm)
+        dset = get_distinguishing_set(fsm)
+
+        for acc_seq in state_cover:
+            acc_seq = tuple(acc_seq)
+            for dtrace in dset:
+                dtrace = tuple(dtrace)
+
+                whole_trace = acc_seq + dtrace
+
+                if whole_trace not in self.feedback_seqs:
+                    filename = f'id:{str(len(self.feedback_seqs)).rjust(6, "0")}'
+                    with open(queuepath.joinpath(filename), 'wb') as file:
+                        for a in whole_trace:
+                            file.write(bytes([int(a)]))
+                    self.feedback_seqs.add(whole_trace)
 
     def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
-        self._update_afl_queue(fsm)
-
-        # Minimization loses some crashes :(
-        #crashing_testcases = self.aflutils.get_minimized_crashset()
-        crashing_testcases = self.aflutils.get_crashset()
+        if self.fbmethod == Feedback.ACC_SEQ:
+            self._update_afl_queue(fsm)
+        elif self.fbmethod == Feedback.W_TRACES:
+            self._update_afl_queue_wtraces(fsm)
+        elif self.fbmethod != Feedback.NONE:
+            assert False, f'unknown feedback method {self.fbmethod}'
 
         equivalent = True
         counterexample = None
 
-        for testcase in crashing_testcases:
-            equivalent, counterexample = self._are_equivalent(fsm, [str(x) for x in testcase])
+        if self.eqchecktype == EQCheckType.ERRORS or self.eqchecktype == EQCheckType.BOTH:
+            equivalent, counterexample = self._test_equivalence_helper(fsm, self.aflutils.get_crashset())
+            if not equivalent:
+                return equivalent, tuple(counterexample)
+
+        if self.eqchecktype == EQCheckType.QUEUE or self.eqchecktype == EQCheckType.BOTH:
+            equivalent, counterexample = self._test_equivalence_helper(fsm, self.aflutils.get_testset())
             if not equivalent:
                 return equivalent, tuple(counterexample)
 
         return equivalent, counterexample
+
+    def _test_equivalence_helper(self, fsm: Union[DFA, MealyMachine], testcases) -> Tuple[bool, Union[Iterable, None]]:
+        for testcase in testcases:
+            equivalent, counterexample = self._are_equivalent(fsm, [str(x) for x in testcase])
+            if not equivalent:
+                return equivalent, tuple(counterexample)
+
+        return True, None
+
 
 
 if __name__ == "__main__":
@@ -101,9 +156,9 @@ if __name__ == "__main__":
     bin_path = f'/home/tom/projects/lstar/afl/{problemset}/{problem}/{problem}'
 
     eqc = StackedChecker(
-        AFLEquivalenceCheckerV2(sul, afl_dir, bin_path),
+        AFLEquivalenceCheckerV2(sul, afl_dir, bin_path, eqchecktype=EQCheckType.BOTH),
         SmartWmethodEquivalenceCheckerV2(sul,
-                                         horizon=12,
+                                         horizon=3,
                                          stop_on={'invalid_input'},
                                          stop_on_startswith={'error'})
     )

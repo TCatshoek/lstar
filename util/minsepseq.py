@@ -31,10 +31,10 @@ def _check_distinguishing_set(fsm, dset):
     outputs = _get_dset_outputs(fsm, dset)
 
     if len(set(outputs.values())) < len(outputs):
-        print("Not unique", outputs)
+        print("Dset Not unique!")
         return False
     else:
-        print('succes!', len(outputs), 'states,', len(set(outputs)), 'unique outputs')
+        print('Dset succes!', len(outputs), 'states,', len(set(outputs)), 'unique outputs')
         return True
 
 def _get_dset_outputs(fsm, dset):

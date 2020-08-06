@@ -28,6 +28,8 @@ args = parser.parse_args()
 
 problem = args.problem
 problemset = args.problemset
+# problem = 'Problem11'
+# problemset = 'TrainingSeqReachRers2019'
 path = f"../../rers/{problemset}/{problem}/{problem}.so"
 
 horizon = 12
@@ -36,7 +38,7 @@ if args.horizon:
 
 now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
-logdir = Path(f'./logs/{problem}_afl_plain')
+logdir = Path(f'./logs/{problem}_afl_wtraces')
 logdir.mkdir(parents=True, exist_ok=True)
 
 statstracker = StatsTracker({
@@ -47,7 +49,7 @@ statstracker = StatsTracker({
     'error_count': 0,
     'errors': set()
 },
-    log_path=logdir.joinpath(f'{problem}_{now}_afl_plain.log'),
+    log_path=logdir.joinpath(f'{problem}_{now}_afl_wtraces.log'),
     write_on_change={'state_count', 'error_count'}
 )
 
@@ -56,7 +58,7 @@ afl_dir = f'/home/tom/projects/lstar/experiments/learningfuzzing/{problemset}/{p
 bin_path = f'/home/tom/projects/lstar/experiments/learningfuzzing/{problemset}/{problem}/{problem}'
 
 eqc = StackedChecker(
-    AFLEquivalenceCheckerV2(sul, afl_dir, bin_path),
+    AFLEquivalenceCheckerV2(sul, afl_dir, bin_path, feedback='w_traces'),
     SmartWmethodEquivalenceCheckerV2(sul,
                                      horizon=horizon,
                                      stop_on={'invalid_input'},

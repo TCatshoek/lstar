@@ -49,9 +49,10 @@ def gather_plot_data(problem, problemset, rers_basepath, afl_basepath):
     last_time = aflutils.get_last_date_time()
 
     # Calculate some time stuff for plotting
-    min_time = min(list(times))
-    rel_times = [time - min_time for time in times]
+    #min_time = min(list(times))
+    min_time = start_time
     rel_start_time = start_time - min_time
+    rel_times = [time - min_time for time in times]
     rel_last_time = last_time - min_time
 
     all_times = [rel_start_time] + rel_times + [rel_last_time]
@@ -59,55 +60,61 @@ def gather_plot_data(problem, problemset, rers_basepath, afl_basepath):
 
     return all_times, all_counts
 
+if __name__ == "__main__":
+    figpath = '/home/tom/projects/lstar/experiments/figures/rers_afl_plots'
+
+    #problemset = "TrainingSeqReachRers2019"
+    problemset = "SeqReachabilityRers2020"
+    rers_basepath = "/home/tom/projects/lstar/rers"
+    #afl_basepath = "/home/tom/projects/lstar/afl"
+    afl_basepath = "/home/tom/afl/2020_fast"
+
+    plain_problems = ['Problem11', 'Problem14', 'Problem17']
+    arith_problems = ['Problem12', 'Problem15', 'Problem18']
+    datastruct_problems = ['Problem13', 'Problem16', 'Problem19']
+
+    seqreach2020problems = {
+        'Plain': plain_problems,
+        'Arithmetic': arith_problems,
+        'Datastructures': datastruct_problems
+    }
+
+    for title, problems in seqreach2020problems.items():
+        for problem in problems:
+            times, counts = gather_plot_data(problem, problemset, rers_basepath, afl_basepath)
+            times = [time / 3600 for time in times]
+            plt.step(times, counts, label=problem)
+
+        plt.title(f'Error states found in {problemset} - {title}')
+        plt.xlabel('time(h)')
+        plt.ylabel('reached error states')
+        plt.legend()
+
+        plt.savefig(f"{figpath}/{title}.png")
+        plt.show()
 
 
-#problemset = "TrainingSeqReachRers2019"
-problemset = "SeqReachabilityRers2020"
-rers_basepath = "/home/tom/projects/lstar/rers"
-#afl_basepath = "/home/tom/projects/lstar/afl"
-afl_basepath = "/home/tom/afl/2020_fast"
-
-plain_problems = ['Problem11', 'Problem14', 'Problem17']
-arith_problems = ['Problem12', 'Problem15', 'Problem18']
-datastruct_problems = ['Problem13', 'Problem16', 'Problem19']
-
-seqreach2020problems = {
-    'Plain': plain_problems,
-    'Arithmetic': arith_problems,
-    'Datastructures': datastruct_problems
-}
-
-for title, problems in seqreach2020problems.items():
-    for problem in problems:
-        times, counts = gather_plot_data(problem, problemset, rers_basepath, afl_basepath)
-        plt.step(times, counts, label=problem)
-
-    plt.title(f'Error states found in {problemset} - {title}')
-    plt.xlabel('time(s)')
-    plt.ylabel('reached error states')
-    plt.legend()
-
-    plt.show()
-
-afl_basepath = "/home/tom/projects/lstar/afl"
-problemset = "TrainingSeqReachRers2019"
-
-seqreach2019trainingproblems = ['Problem11', 'Problem12', 'Problem13']
-
-for problem in seqreach2019trainingproblems:
-    times, counts = gather_plot_data(problem, problemset, rers_basepath, afl_basepath)
-    print(problem, max(counts))
-    plt.step(times, counts, label=problem)
-
-plt.title(f'Error states found in {problemset} - Training')
-plt.xlabel('time(s)')
-plt.ylabel('reached error states')
-plt.legend()
-
-plt.show()
-#
-# reachable, unreachable = parse_csv(Path(path).parent.joinpath(f'reachability-solution-{problem}.csv'))
-#
-# print("Reached:", set(reached))
-# print("Not reached:", set(reached).symmetric_difference(set(reachable)))
-#
+    # afl_basepath = "/home/tom/projects/lstar/afl"
+    # problemset = "TrainingSeqReachRers2019"
+    #
+    # seqreach2019trainingproblems = ['Problem11', 'Problem12', 'Problem13']
+    #
+    # for problem in seqreach2019trainingproblems:
+    #     times, counts = gather_plot_data(problem, problemset, rers_basepath, afl_basepath)
+    #     print(problem, max(counts))
+    #     plt.step(times, counts, label=problem)
+    #
+    # plt.title(f'Error states found in {problemset} - Training')
+    # plt.xlabel('time(s)')
+    # plt.ylabel('reached error states')
+    # plt.legend()
+    #
+    # plt.savefig(f"{figpath}/training.svg")
+    # plt.show()
+    #
+    #
+    # reachable, unreachable = parse_csv(Path(path).parent.joinpath(f'reachability-solution-{problem}.csv'))
+    #
+    # print("Reached:", set(reached))
+    # print("Not reached:", set(reached).symmetric_difference(set(reachable)))
+    #

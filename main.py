@@ -24,8 +24,8 @@ from util.mealy2nusmv import  mealy2nusmv_withintermediate, rersltl2smv_withinte
 
 from util.statstracker import StatsTracker
 
-problem = "Problem1"
-problemset = "SeqLtlRers2020"
+problem = "Problem12"
+problemset = "SeqReachabilityRers2020"
 path = f"/home/tom/projects/lstar/rers/{problemset}/{problem}/{problem}.so"
 
 
@@ -47,7 +47,7 @@ statstracker = StatsTracker({
 sul = RERSSOConnector(path)
 
 eqc = SmartWmethodEquivalenceCheckerV2(sul,
-                                     horizon=2,
+                                     horizon=12,
                                      stop_on={'invalid_input'},
                                      stop_on_startswith={'error'})
 
@@ -60,7 +60,7 @@ learner = TTTMealyLearner(teacher)
 
 # Get the learners hypothesis
 hyp = learner.run(
-    show_intermediate=False,
+    show_intermediate=True,
     render_options={'ignore_self_edges': ['error', 'invalid']}
     #on_hypothesis=lambda x: check_result(x, f'rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv')
 )
