@@ -1,4 +1,7 @@
 import sys
+
+from equivalencecheckers.nusmv import NuSMVEquivalenceChecker
+
 sys.path.extend(['/home/tom/projects/lstar'])
 import os
 os.chdir('/home/tom/projects/lstar/experiments/rers')
@@ -29,7 +32,8 @@ import argparse
 # problem = args.problem
 # problemset = args.problemset
 afl_basedir = '/home/tom/afl/2020_ltl'
-problem = 'Problem1'
+#afl_basedir = '/home/tom/projects/lstar/afl'
+problem = 'Problem8'
 problemset = 'SeqLtlRers2020'
 #problemset = 'TrainingSeqLtlRers2020'
 
@@ -56,17 +60,24 @@ statstracker = StatsTracker({
     write_on_change={'state_count', 'error_count'}
 )
 
+constrpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-{problem}.txt'
+mappingpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/{problem}_alphabet_mapping_C_version.txt'
+
 sul = RERSSOConnector(path)
 # afl_dir = f'{args.afl_dir}/{problemset}/{problem}'
 # bin_path = f'{args.afl_dir}/{problemset}/{problem}/{problem}'
 afl_dir = f'{afl_basedir}/{problemset}/{problem}'
 bin_path = f'{afl_basedir}/{problemset}/{problem}/{problem}'
 eqc = StackedChecker(
-    AFLEquivalenceCheckerV2(sul, afl_dir, bin_path, eqchecktype=EQCheckType.BOTH),
+    AFLEquivalenceCheckerV2(sul, afl_dir, bin_path,
+                            eqchecktype=EQCheckType.BOTH,
+                            enable_dtraces=True),
+    NuSMVEquivalenceChecker(sul, constrpath, mappingpath),
     SmartWmethodEquivalenceCheckerV2(sul,
                                      horizon=horizon,
                                      stop_on={'invalid_input'},
-                                     stop_on_startswith={'error'})
+                                     stop_on_startswith={'error'}),
+
 )
 
 # Set up the teacher, with the system under learning and the equivalence checker
@@ -82,8 +93,6 @@ hyp = learner.run(
     on_hypothesis=savehypothesis(f'hypotheses/ltl/{problem}', f'{problem}')
 )
 
-constrpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-{problem}.txt'
-mappingpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/{problem}_alphabet_mapping_C_version.txt'
 
 nusmv = NuSMVUtils(constrpath, mappingpath)
 

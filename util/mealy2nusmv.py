@@ -152,6 +152,10 @@ def mealy2nusmv_withintermediate(fsm: MealyMachine):
 
     statenames_with_intermediate = ",".join(statenames_with_intermediate)
 
+    first_valid_inputs = []
+    for input, (next_state, output) in fsm.initial_state.edges.items():
+        if output != "invalid_input":
+            first_valid_inputs.append(input)
 
     # Assemble smv file
     smvlines = []
@@ -173,7 +177,10 @@ def mealy2nusmv_withintermediate(fsm: MealyMachine):
     smvlines.append("\t\t\tTRUE : state;\n")
     smvlines.append("\tesac;\n")
 
-    smvlines.append("\tinit(output) := {" + ",".join(alphabet) + "};\n")
+    # The initial inputs also can't be invalid input,
+    # So we cannot just choose any alphabet character
+    #smvlines.append("\tinit(output) := {" + ",".join(alphabet) + "};\n")
+    smvlines.append("\tinit(output) := {" + ",".join(first_valid_inputs) + "};\n")
     smvlines.append("\tnext(output) := case\n")
 
     for state in states:
@@ -270,6 +277,9 @@ def rersltl2smv_withintermediate(ltlpath, mappingpath):
 
             # Grab LTL rules
             if not line.startswith('#') and len(line.strip()) > 0:
+
+                # Rers 2019 uses WU instead of W for weak until, replace it
+                line = re.sub(' WU ', ' W ', line)
 
                 # Use spot to rewrite weak until formula if present
                 line = rewrite_weakuntil(line)

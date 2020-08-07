@@ -27,23 +27,43 @@ from shutil import rmtree
 from afl.util import decode_afl_file, strip_invalid, trim
 import pickle
 import re
+from itertools import product
 
+# def parse_nusmv_counterexample(ce):
+#     result = re.match(r'\[(.*)\]\(\[(.*)\]\)', ce)
+#     assert result, f"Couldn't parse nusmv counterexample: f{ce}"
+#
+#     prefix = result.group(1).split(';') if len(result.group(1)) > 0 else []
+#     loop = result.group(2).split(';') if len(result.group(2)) > 0 else []
+#
+#     prefix_inputs = [prefix[i] for i in range(0, len(prefix), 2)]
+#     loop_inputs = [loop[i] for i in range((len(prefix) % 2), len(loop), 2)]
+#
+#     return tuple(prefix_inputs), tuple(loop_inputs)
 
 def parse_nusmv_counterexample(ce):
-    result = re.match(r'\[(.*)\]\(\[(.*)\]\)', ce)
-    assert result, f"Couldn't parse nusmv counterexample: f{ce}"
+    loop_match = re.findall(r'\(\[([0-9;]*)\]\)\*', ce)
+    assert len(loop_match) > 0, f"Couldn't parse nusmv counterexample loops: {ce}"
 
-    prefix = result.group(1).split(';') if len(result.group(1)) > 0 else []
-    loop = result.group(2).split(';') if len(result.group(2)) > 0 else []
+    prefix_match = re.match(r'\[([0-9;]*)\]\(', ce)
+    assert prefix_match, f"Couldn't parse nusmv counterexample prefix: {ce}"
 
+    prefix = prefix_match.group(1).split(';') if len(prefix_match.group(1)) > 0 else []
     prefix_inputs = [prefix[i] for i in range(0, len(prefix), 2)]
-    loop_inputs = [loop[i] for i in range((len(prefix) % 2), len(loop), 2)]
 
-    return tuple(prefix_inputs), tuple(loop_inputs)
+    prev = prefix
+    loops_inputs = []
+    for loop_str in loop_match:
+        loop = loop_str.split(';')
+        loop_inputs = [loop[i] for i in range((len(prev) % 2), len(loop), 2)]
+        loops_inputs.append(tuple(loop_inputs))
+        prev = loop
+
+    return tuple(prefix_inputs), loops_inputs
 
 
 class NuSMVEquivalenceChecker(EquivalenceChecker):
-    def __init__(self, sul: SUL, constraints_path, mapping_path, n_unrolls=100):
+    def __init__(self, sul: SUL, constraints_path, mapping_path, n_unrolls=10):
         super().__init__(sul)
         self.nusmv = NuSMVUtils(constraints_path, mapping_path)
         self.n_unrolls = n_unrolls
@@ -56,11 +76,19 @@ class NuSMVEquivalenceChecker(EquivalenceChecker):
         nusmv_counterexamples = [y[2] for y in filter(lambda x: x[1] == 'false', nusmv_results)]
 
         for nusmv_counterexample in nusmv_counterexamples:
-            prefix, loop = parse_nusmv_counterexample(nusmv_counterexample)
-            for n in range(self.n_unrolls):
-                cur_testcase = prefix + (loop * n)
-                #print("NUSMV", cur_testcase)
-                if len(cur_testcase) > 0:
+            prefix, loops = parse_nusmv_counterexample(nusmv_counterexample)
+
+            # Figure out the unroll counts for the loops
+            n_repeats = product(range(self.n_unrolls), repeat=len(loops))
+            for repeats in n_repeats:
+
+                # build testcase
+                cur_testcase = prefix
+                for idx, repeat in enumerate(repeats):
+                    cur_testcase += (loops[idx] * repeat)
+
+                print("NUSMV", cur_testcase)
+                if len(cur_testcase) > 0 and cur_testcase[0] is not '':
                     equivalent, counterexample = self._are_equivalent(fsm, cur_testcase)
                     if not equivalent:
                         return equivalent, counterexample
@@ -69,12 +97,18 @@ class NuSMVEquivalenceChecker(EquivalenceChecker):
 
 
 if __name__ == "__main__":
+    from rers.check_ltl_result import check_result
+
     problem = 'Problem3'
     problemset = 'SeqLtlRers2020'
     problemset = 'TrainingSeqLtlRers2020'
     constrpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-{problem}.txt'
     mappingpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/{problem}_alphabet_mapping_C_version.txt'
 
+    if '2020' in problemset:
+        solutionspath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-solution-{problem}.txt'
+    else:
+        solutionspath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-solution.csv'
 
     path = f"../rers/{problemset}/{problem}/{problem}.so"
     sul = RERSSOConnector(path)
@@ -82,11 +116,15 @@ if __name__ == "__main__":
     horizon = 2
 
     eqc = StackedChecker(
-        #NuSMVEquivalenceChecker(sul, constrpath, mappingpath),
         SmartWmethodEquivalenceCheckerV2(sul,
                                          horizon=horizon,
                                          stop_on={'invalid_input'},
-                                         stop_on_startswith={'error'})
+                                         stop_on_startswith={'error'}),
+        NuSMVEquivalenceChecker(sul, constrpath, mappingpath, n_unrolls=10),
+        # SmartWmethodEquivalenceCheckerV2(sul,
+        #                                  horizon=horizon,
+        #                                  stop_on={'invalid_input'},
+        #                                  stop_on_startswith={'error'})
     )
 
     # Set up the teacher, with the system under learning and the equivalence checker
@@ -100,7 +138,11 @@ if __name__ == "__main__":
         show_intermediate=False,
     )
 
+    #hyp.render_graph()
 
     nusmv = NuSMVUtils(constrpath, mappingpath)
 
-    nusmv.run_ltl_check(hyp)
+    ltl_answers = nusmv.run_ltl_check(hyp)
+
+    if 'Training' in problemset:
+        check_result(ltl_answers, solutionspath)

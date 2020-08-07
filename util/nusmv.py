@@ -81,19 +81,50 @@ class NuSMVUtils:
         return [(rule, answer, self._parse_counterexample(counterexamples[rule]) if rule in counterexamples else None)
                 for rule, answer in results.items()]
 
-    # TODO fix for cases with more than one loop
+    # # TODO fix for cases with more than one loop
+    # def _parse_counterexample(self, counterexample: list):
+    #     if '-- Loop starts here' in counterexample:
+    #         loop_begin = counterexample.index('-- Loop starts here') + 1
+    #         loop = counterexample[loop_begin:-1]
+    #         prefix = counterexample[0:loop_begin - 1]
+    #     else:
+    #         prefix = counterexample
+    #         loop = None
+    #
+    #     ce_string_prefix = f'[{";".join(prefix)}]'
+    #     if loop is not None:
+    #         ce_string_loop = f'([{";".join(loop)}])*'
+    #     else:
+    #         ce_string_loop = ""
+    #
+    #     assert '-- Loop starts here' not in ce_string_prefix + ce_string_loop
+    #
+    #     return ce_string_prefix + ce_string_loop
+
     def _parse_counterexample(self, counterexample: list):
-        if '-- Loop starts here' in counterexample:
-            loop_begin = counterexample.index('-- Loop starts here') + 1
-            loop = counterexample[loop_begin:-1]
-            prefix = counterexample[0:loop_begin - 1]
-        else:
-            prefix = counterexample
-            loop = None
+        # The prefix ends when the first loop begins
+        prefix_end_idx = counterexample.index('-- Loop starts here')
+        prefix = counterexample[0:prefix_end_idx]
+
+        # Find all starts of loops (there can be multiple)
+        loop_starts = [i for i, x in enumerate(counterexample) if x == '-- Loop starts here']
+
+        # Extract the loop contents for all loops found
+        loops = []
+        for i, loop_start in enumerate(loop_starts):
+            next_loop_start = None
+            if i < len(loop_starts) - 1:
+                next_loop_start = loop_starts[i + 1]
+
+            this_loop = counterexample[loop_start + 1: next_loop_start - 1] if next_loop_start \
+                else counterexample[loop_start + 1:-1]
+
+            loops.append(this_loop)
+
 
         ce_string_prefix = f'[{";".join(prefix)}]'
-        if loop is not None:
-            ce_string_loop = f'([{";".join(loop)}])*'
+        if len(loops) > 0:
+            ce_string_loop = ''.join([f'([{";".join(loop)}])*' for loop in loops])
         else:
             ce_string_loop = ""
 

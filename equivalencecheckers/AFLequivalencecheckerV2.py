@@ -29,6 +29,7 @@ import pickle
 from util.minsepseq import get_distinguishing_set
 
 from enum import Enum, auto
+from itertools import product
 
 # The types of feedback to afl that can be configured
 # ACC_SEQ puts all access sequences of the hypothesis in the queue of afl
@@ -48,6 +49,7 @@ class AFLEquivalenceCheckerV2(EquivalenceChecker):
     def __init__(self, sul: SUL, afl_dir, bin_path,
                  feedback=Feedback.ACC_SEQ,
                  eqchecktype=EQCheckType.ERRORS,
+                 enable_dtraces=False,
                  name="learner01"):
 
         super().__init__(sul)
@@ -71,6 +73,7 @@ class AFLEquivalenceCheckerV2(EquivalenceChecker):
 
         self.fbmethod = feedback
         self.eqchecktype = eqchecktype
+        self.enable_dtraces = enable_dtraces
 
     def _update_afl_queue(self, fsm: Union[DFA, MealyMachine]):
         # Make sure we have a folder to put our stuff in
@@ -128,7 +131,13 @@ class AFLEquivalenceCheckerV2(EquivalenceChecker):
                 return equivalent, tuple(counterexample)
 
         if self.eqchecktype == EQCheckType.QUEUE or self.eqchecktype == EQCheckType.BOTH:
-            equivalent, counterexample = self._test_equivalence_helper(fsm, self.aflutils.get_testset())
+            if self.enable_dtraces:
+                testset = self.aflutils.get_testset()
+                dset = get_distinguishing_set(fsm)
+                concatted = [tuple(a) + b for a, b in product(testset, dset)]
+                equivalent, counterexample = self._test_equivalence_helper(fsm, concatted)
+            else:
+                equivalent, counterexample = self._test_equivalence_helper(fsm, self.aflutils.get_testset())
             if not equivalent:
                 return equivalent, tuple(counterexample)
 
