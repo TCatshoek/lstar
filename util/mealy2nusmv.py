@@ -306,7 +306,14 @@ def rersltl2smv_withintermediate(ltlpath, mappingpath):
                 for invar in inputs:
                     line = line.replace(invar, f'(output = {name_to_c[invar]})')
                 for outvar in outputs:
-                    line = line.replace(outvar, f'(output = {name_to_c[outvar]})')
+                    # It is possible for an output to be missing from the mapping,
+                    # since the mapping is auto generated based on the model,
+                    # a missing output mapping can never happen and thus always
+                    # evaluates to FALSE
+                    if outvar in name_to_c:
+                        line = line.replace(outvar, f'(output = {name_to_c[outvar]})')
+                    else:
+                        line = line.replace(outvar, f'FALSE')
 
                 # Rewrite formulae
                 # NuSMV uses V for release, rers uses R

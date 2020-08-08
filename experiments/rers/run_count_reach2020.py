@@ -1,4 +1,6 @@
 import sys
+from pathlib import Path
+
 sys.path.extend(['/home/tom/projects/lstar'])
 import os
 os.chdir('/home/tom/projects/lstar/experiments/rers')
@@ -23,25 +25,6 @@ def check_reached(problem, problemset, rers_basepath, afl_basepath):
     errors = aflutils.gather_reached_errors()
     return set([re.sub('error_', '', x) for x in errors])
 
-    # errors = aflutils.gather_reached_errors(return_traces=True)
-    #
-    # # Gather traces leading to error states, per error state
-    # traces_by_state = {}
-    # for error, trace in errors:
-    #     if error in traces_by_state:
-    #         traces_by_state[error].append(trace)
-    #     else:
-    #         traces_by_state[error] = [trace]
-    #
-    # shortest_to_error = {}
-    # for error, traces in traces_by_state.items():
-    #     shortest_trace = sorted(traces, key=len)[0]
-    #     shortest_to_error[error] = shortest_trace
-    #
-    # for error, trace in sorted(shortest_to_error.items(), key=lambda x: len(x[1])):
-    #     print(error, [int(x) for x in trace])
-    #
-    # return shortest_to_error
 
 problems = [f'Problem{x}' for x in range(11, 20)]
 problemset = "SeqReachabilityRers2020"
@@ -53,3 +36,12 @@ for problem in problems:
     errors = check_reached(problem, problemset, rers_basepath, afl_basepath)
     print(errors)
     print()
+
+    result_dir = Path(f'results/{problemset}')
+    result_dir.mkdir(exist_ok=True, parents=True)
+
+    problem_number = problem.replace('Problem', '')
+
+    with result_dir.joinpath(f'{problem}.csv').open('w') as f:
+        for error in sorted(errors, key=lambda x: int(x)):
+            f.write(f'{problem_number}, {error}, true\n')

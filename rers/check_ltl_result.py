@@ -20,3 +20,5 @@ def check_result(ltl_results, solutions_path):
             print(f'Rule #{i} incorrect. Answer: {answers[i]}, Solution: {solutions[i]}')
 
     print(f"Score: {correct}/{correct + incorrect}")
+
+    return correct, correct + incorrect

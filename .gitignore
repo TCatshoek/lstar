@@ -164,3 +164,31 @@ klee/
 # Core dumps >_>
 *core.*
 
+/experiments/learningfuzzing/hypotheses/afl_plain/
+/experiments/learningfuzzing/TrainingSeqReachRers2019/
+/experiments/learningfuzzing/TrainingSeqReachRers2019_afl_plain/
+/experiments/learningfuzzing/TrainingSeqReachRers2019_afl_wtraces/TrainingSeqReachRers2019/
+/angr/angr-dev/angr-utils/angr_utils.egg-info/
+/experiments/reinforcementlearning/testlol/qviTkw/
+/experiments/reinforcementlearning/nosampling
+/experiments/reinforcementlearning/not_slippery
+/gym
+/step1
+/step2
+/step3
+/rers/ltl_training/
+/rers/SeqLtlRers2020/
+/rers/TrainingSeqLtlRers2019/
+/rers/TrainingSeqLtlRers2020/
+/experiments/rers/hypotheses/
+/experiments/rers/results/
+/experiments/figures/
+/afl/parse
+/angr/
+/angr/angr-dev/angr-utils/angr_utils.egg-info/
+/angr/angr-dev/angr-utils/angr_utils.egg-info/
+/angr/angr-dev/angr-utils/angr_utils.egg-info/dependency_links.txt
+/angr/angr-dev/angr-utils/angr_utils.egg-info/PKG-INFO
+/angr/angr-dev/angr-utils/angr_utils.egg-info/requires.txt
+/angr/angr-dev/angr-utils/angr_utils.egg-info/SOURCES.txt
+/angr/angr-dev/angr-utils/angr_utils.egg-info/top_level.txt
