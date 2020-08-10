@@ -63,10 +63,11 @@ def parse_nusmv_counterexample(ce):
 
 
 class NuSMVEquivalenceChecker(EquivalenceChecker):
-    def __init__(self, sul: SUL, constraints_path, mapping_path, n_unrolls=10):
+    def __init__(self, sul: SUL, constraints_path, mapping_path, n_unrolls=10, enable_dtraces=True):
         super().__init__(sul)
         self.nusmv = NuSMVUtils(constraints_path, mapping_path)
         self.n_unrolls = n_unrolls
+        self.enable_dset = enable_dtraces
 
     def test_equivalence(self, fsm: Union[DFA, MealyMachine]) -> Tuple[bool, Iterable]:
         # Get the NuSMV results
@@ -74,6 +75,9 @@ class NuSMVEquivalenceChecker(EquivalenceChecker):
 
         # Get the counterexamples for the failed constraints:
         nusmv_counterexamples = [y[2] for y in filter(lambda x: x[1] == 'false', nusmv_results)]
+
+        # Get distinguishing set
+        dset = get_distinguishing_set(fsm)
 
         for nusmv_counterexample in nusmv_counterexamples:
             prefix, loops = parse_nusmv_counterexample(nusmv_counterexample)
@@ -87,11 +91,18 @@ class NuSMVEquivalenceChecker(EquivalenceChecker):
                 for idx, repeat in enumerate(repeats):
                     cur_testcase += (loops[idx] * repeat)
 
-                print("NUSMV", cur_testcase)
-                if len(cur_testcase) > 0 and cur_testcase[0] is not '':
-                    equivalent, counterexample = self._are_equivalent(fsm, cur_testcase)
-                    if not equivalent:
-                        return equivalent, counterexample
+                if self.enable_dset:
+                    for dtrace in dset:
+                        cur_testcase_w_dtrace = cur_testcase + tuple(dtrace)
+                        if len(cur_testcase_w_dtrace) > 0 and cur_testcase_w_dtrace[0] != '':
+                            equivalent, counterexample = self._are_equivalent(fsm, cur_testcase_w_dtrace)
+                            if not equivalent:
+                                return equivalent, counterexample
+                else:
+                    if len(cur_testcase) > 0 and cur_testcase[0] != '':
+                        equivalent, counterexample = self._are_equivalent(fsm, cur_testcase)
+                        if not equivalent:
+                            return equivalent, counterexample
 
         return True, None
 
