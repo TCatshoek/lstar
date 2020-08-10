@@ -67,15 +67,17 @@ if __name__ == "__main__":
     problemset = "SeqReachabilityRers2020"
     rers_basepath = "/home/tom/projects/lstar/rers"
     #afl_basepath = "/home/tom/projects/lstar/afl"
-    afl_basepath = "/home/tom/afl/2020_fast"
+
+    #afl_basepath = "/home/tom/afl/2020_plusplus"
+    afl_basepath = "/home/tom/afl/apta_backup/tmpfs/2020_fast"
 
     plain_problems = ['Problem11', 'Problem14', 'Problem17']
     arith_problems = ['Problem12', 'Problem15', 'Problem18']
     datastruct_problems = ['Problem13', 'Problem16', 'Problem19']
 
     seqreach2020problems = {
-        'Plain': plain_problems,
-        'Arithmetic': arith_problems,
+        #'Plain': plain_problems,
+        #'Arithmetic': arith_problems,
         'Datastructures': datastruct_problems
     }
 
@@ -89,7 +91,7 @@ if __name__ == "__main__":
         plt.xlabel('time(h)')
         plt.ylabel('reached error states')
         plt.legend()
-
+        plt.xlim(left = -0.001, right = 0.01)
         plt.savefig(f"{figpath}/{title}.png")
         plt.show()
 

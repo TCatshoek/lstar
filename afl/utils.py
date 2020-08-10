@@ -46,10 +46,10 @@ class AFLUtils:
     # Binary path is the binary fuzzed by afl
     def __init__(self, root_dir, binary_path, alphabet, sul=None):
         self.root_dir = Path(root_dir)
-        assert self.root_dir.exists()
+        assert self.root_dir.exists(), f'{root_dir} does not exists'
 
         self.binary_path = Path(binary_path)
-        assert self.binary_path.exists()
+        assert self.binary_path.exists(), f'{binary_path} does not exists'
 
         self.alphabet = alphabet
 
@@ -242,7 +242,7 @@ class AFLUtils:
     # by looking at when the original file was copied
     # to the output dir
     def get_start_date_time(self):
-        origs = [x for x in self.root_dir.joinpath("output").glob('**/id:000000,orig*') if
+        origs = [x for x in self.root_dir.joinpath("output").glob('**/id:000000*orig*') if
                    x.match(f'**/queue/**') and not x.match('**/learner*/**')]
 
         times = [x.stat().st_mtime for x in origs]

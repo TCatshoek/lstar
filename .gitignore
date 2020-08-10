@@ -192,3 +192,9 @@ klee/
 /angr/angr-dev/angr-utils/angr_utils.egg-info/requires.txt
 /angr/angr-dev/angr-utils/angr_utils.egg-info/SOURCES.txt
 /angr/angr-dev/angr-utils/angr_utils.egg-info/top_level.txt
+/libfuzzer/SeqLtlRers2020/
+/libfuzzer/SeqReachabilityRers2020/
+/libfuzzer/TrainingSeqLtlRers2020/
+/libfuzzer/TrainingSeqReachRers2019/
+/rers/SeqLtlRers2019/
+/experiments/rers/run_ltl_rers2020_9test.py

@@ -22,14 +22,14 @@ from datetime import datetime
 from util.nusmv import NuSMVUtils
 import argparse
 
-afl_basedir = '/home/tom/afl/2020_ltl'
+afl_basedir = '/home/tom/afl/2020_plusplus'
 #afl_basedir = '/home/tom/projects/lstar/afl'
 problems = [f'Problem{x}' for x in range(1,10)]
 problemset = 'SeqLtlRers2020'
 
+horizon = 3
 
-
-horizon = 2
+run_start = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
 for problem in problems:
 
@@ -37,7 +37,7 @@ for problem in problems:
 
     now = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
-    logdir = Path(f'./logs/{problem}_ltl')
+    logdir = Path(f'./logs/{problemset}')
     logdir.mkdir(parents=True, exist_ok=True)
 
     statstracker = StatsTracker({
@@ -67,7 +67,9 @@ for problem in problems:
         AFLEquivalenceCheckerV2(sul, afl_dir, bin_path,
                                 eqchecktype=EQCheckType.BOTH,
                                 enable_dtraces=True),
-        NuSMVEquivalenceChecker(sul, constrpath, mappingpath, n_unrolls=100),
+        NuSMVEquivalenceChecker(sul, constrpath, mappingpath,
+                                n_unrolls=1000,
+                                enable_dtraces=True),
         SmartWmethodEquivalenceCheckerV2(sul,
                                          horizon=horizon,
                                          stop_on={'invalid_input'},
@@ -85,18 +87,19 @@ for problem in problems:
     hyp = learner.run(
         show_intermediate=False,
         render_options={'ignore_self_edges': ['error', 'invalid']},
-        on_hypothesis=savehypothesis(f'hypotheses/ltl/{problem}', f'{problem}')
+        on_hypothesis=savehypothesis(f'hypotheses/{problemset}/{run_start}/{problem}', f'{problem}')
     )
 
     nusmv = NuSMVUtils(constrpath, mappingpath)
 
     result = nusmv.run_ltl_check(hyp)
 
-    Path(f'results/{problemset}').mkdir(exist_ok=True, parents=True)
+    result_dir = Path(f'results/{problemset}/{run_start}')
+    result_dir.mkdir(exist_ok=True, parents=True)
 
     problem_number = problem.replace('Problem', '')
     # write nusmv results
-    with open(f'results/{problemset}/{problem}.csv', 'w') as f:
+    with open(result_dir.joinpath(f'{problem}.csv'), 'w') as f:
         for i, r in enumerate(result):
             f.write(f'{problem_number}, {i}, {r[1]}\n')
 

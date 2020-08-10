@@ -30,7 +30,8 @@ def check_reached(problem, problemset, rers_basepath, afl_basepath):
 training_problems = ["Problem11", "Problem12", "Problem13"]
 problemset = "TrainingSeqReachRers2019"
 rers_basepath = "/home/tom/projects/lstar/rers"
-afl_basepath = "/home/tom/projects/lstar/afl"
+#afl_basepath = "/home/tom/projects/lstar/afl"
+afl_basepath = "/tmp/afl/trainingreach2019"
 
 for problem in training_problems:
     print(problem)

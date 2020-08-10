@@ -29,15 +29,21 @@ def check_reached(problem, problemset, rers_basepath, afl_basepath):
 problems = [f'Problem{x}' for x in range(11, 20)]
 problemset = "SeqReachabilityRers2020"
 rers_basepath = "/home/tom/projects/lstar/rers"
-afl_basepath = "/home/tom/afl/2020_fast"
+afl_basepath =   "/home/tom/afl/apta_backup/tmpfs/2020_plusplus"
+afl_basepath_2 = "/home/tom/afl/apta_backup/tmpfs/2020_fast"
 
 for problem in problems:
     print(problem)
     errors = check_reached(problem, problemset, rers_basepath, afl_basepath)
-    print(errors)
+    print(len(errors))
+    errors_2 = check_reached(problem, problemset, rers_basepath, afl_basepath_2)
+    print(len(errors_2))
+    print('total:', len(errors.union(errors_2)))
     print()
 
-    result_dir = Path(f'results/{problemset}')
+    errors = errors.union(errors_2)
+
+    result_dir = Path(f'results/{problemset}_combined')
     result_dir.mkdir(exist_ok=True, parents=True)
 
     problem_number = problem.replace('Problem', '')

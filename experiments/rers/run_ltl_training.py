@@ -23,10 +23,10 @@ from util.nusmv import NuSMVUtils
 import argparse
 
 
-problems = [f'Problem{x}' for x in range(1, 4)]
+problems = [f'Problem{x}' for x in range(7, 10)]
 problemset = 'TrainingSeqLtlRers2020'
-
-horizon = 2
+problemset = 'SeqLtlRers2019'
+horizon = 10
 
 scores = []
 
@@ -37,15 +37,13 @@ for problem in problems:
     constrpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-{problem}.txt'
     mappingpath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/{problem}_alphabet_mapping_C_version.txt'
 
-    if '2020' in problemset:
+    if '2020' in problemset or problemset == 'SeqLtlRers2019':
         solutionspath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-solution-{problem}.txt'
     else:
         solutionspath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-solution.csv'
 
     path = f"../../rers/{problemset}/{problem}/{problem}.so"
     sul = RERSSOConnector(path)
-
-    horizon = 2
 
     eqc = StackedChecker(
         SmartWmethodEquivalenceCheckerV2(sul,
@@ -68,6 +66,7 @@ for problem in problems:
     # Get the learners hypothesis
     hyp = learner.run(
         show_intermediate=False,
+        on_hypothesis=savehypothesis(f'hypotheses/{problemset}/{problem}', f'{problem}')
     )
 
     # hyp.render_graph()
@@ -76,7 +75,7 @@ for problem in problems:
 
     ltl_answers = nusmv.run_ltl_check(hyp)
 
-    if 'Training' in problemset:
+    if 'Training' in problemset or problemset == 'SeqLtlRers2019':
         scores.append(check_result(ltl_answers, solutionspath))
 
     Path(f'results/{problemset}').mkdir(exist_ok=True, parents=True)
