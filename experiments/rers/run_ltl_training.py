@@ -1,5 +1,6 @@
 import sys
 
+from equivalencecheckers.libfuzzerequivalencechecker import LibFuzzerEquivalenceChecker
 from equivalencecheckers.nusmv import NuSMVEquivalenceChecker
 
 sys.path.extend(['/home/tom/projects/lstar'])
@@ -26,7 +27,7 @@ import argparse
 problems = [f'Problem{x}' for x in range(7, 10)]
 problemset = 'TrainingSeqLtlRers2020'
 problemset = 'SeqLtlRers2019'
-horizon = 10
+horizon = 3
 
 scores = []
 
@@ -45,12 +46,17 @@ for problem in problems:
     path = f"../../rers/{problemset}/{problem}/{problem}.so"
     sul = RERSSOConnector(path)
 
+    fuzzerpath = Path(f'/home/tom/projects/lstar/libfuzzer/{problemset}/{problem}')
+
     eqc = StackedChecker(
+        LibFuzzerEquivalenceChecker(sul,
+                                    corpus_path=fuzzerpath.joinpath("corpus"),
+                                    fuzzer_path=fuzzerpath.joinpath(f'{problem}_fuzz')),
         SmartWmethodEquivalenceCheckerV2(sul,
                                          horizon=horizon,
                                          stop_on={'invalid_input'},
                                          stop_on_startswith={'error'}),
-        NuSMVEquivalenceChecker(sul, constrpath, mappingpath, n_unrolls=10),
+        #NuSMVEquivalenceChecker(sul, constrpath, mappingpath, n_unrolls=10),
         # SmartWmethodEquivalenceCheckerV2(sul,
         #                                  horizon=horizon,
         #                                  stop_on={'invalid_input'},

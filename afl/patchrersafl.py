@@ -99,7 +99,7 @@ def replace_main(lines):
             int input = buf[i];
 
 		    $checkline
-                return -2;
+                break;
 
             calculate_output(input);
         }
@@ -133,6 +133,7 @@ lines = replace_main(lines)
 allowed_inputs = get_allowed_inputs(lines)
 check_index = lines.index('		    $checkline\n')
 lines[check_index] = generate_check_line(allowed_inputs)
+lines[check_index + 1] = '\t\t\t\tbreak;'
 
 # Remove printfs since we don't need them
 lines = [re.sub(r'\s*printf\(.*\);\s*fflush\(stdout\);', '', line) for line in lines]

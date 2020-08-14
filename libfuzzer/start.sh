@@ -1,19 +1,18 @@
 #!/bin/bash
 
-tmux new-session -d -s afl
+tmux new-session -d -s libfuzzer
 
 att() {
-	[ -n "${TMUX:-}" ] &&
-	tmux switch-client -t '=afl' ||
-	tmux attach-session -t '=afl'
+        [ -n "${TMUX:-}" ] &&
+        tmux switch-client -t '=libfuzzer' ||
+        tmux attach-session -t '=libfuzzer'
 }
 
 
 for d in */
 do
-	tmux new-window -d -t '=afl' -n ${d%/} -c $d
-	tmux send-keys -t "=afl:${d%/}" "cd afl/$d" Enter
-	tmux send-keys -t "=afl:=${d%/}" "afl-fuzz -i input -o output ~/rers2020/SeqReachabilityRers2020/${d}${d%/}" Enter
+        tmux new-window -d -t '=libfuzzer' -n ${d%/} -c ./$d
+        tmux send-keys -t "=libfuzzer:=${d%/}" "./${d%/}_fuzz corpus -dict=./dict" Enter
 done
 
 att

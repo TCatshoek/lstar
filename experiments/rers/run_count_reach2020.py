@@ -32,6 +32,7 @@ rers_basepath = "/home/tom/projects/lstar/rers"
 afl_basepath =   "/home/tom/afl/apta_backup/tmpfs/2020_plusplus"
 afl_basepath_2 = "/home/tom/afl/apta_backup/tmpfs/2020_fast"
 
+
 for problem in problems:
     print(problem)
     errors = check_reached(problem, problemset, rers_basepath, afl_basepath)
@@ -48,6 +49,6 @@ for problem in problems:
 
     problem_number = problem.replace('Problem', '')
 
-    with result_dir.joinpath(f'{problem}.csv').open('w') as f:
+    with result_dir.joinpath(f'{problem}_tcatshoek.csv').open('w') as f:
         for error in sorted(errors, key=lambda x: int(x)):
             f.write(f'{problem_number}, {error}, true\n')

@@ -77,8 +77,8 @@ if __name__ == "__main__":
 
     seqreach2020problems = {
         #'Plain': plain_problems,
-        #'Arithmetic': arith_problems,
-        'Datastructures': datastruct_problems
+        'Arithmetic': arith_problems,
+        #'Datastructures': datastruct_problems
     }
 
     for title, problems in seqreach2020problems.items():
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         plt.xlabel('time(h)')
         plt.ylabel('reached error states')
         plt.legend()
-        plt.xlim(left = -0.001, right = 0.01)
+        #plt.xlim(left = -0.001, right = 0.01)
         plt.savefig(f"{figpath}/{title}.png")
         plt.show()
 

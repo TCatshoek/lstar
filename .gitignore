@@ -198,3 +198,6 @@ klee/
 /libfuzzer/TrainingSeqReachRers2019/
 /rers/SeqLtlRers2019/
 /experiments/rers/run_ltl_rers2020_9test.py
+/libfuzzer/SeqLtlRers2019/
+/libfuzzer/SeqReachabilityRers2019/
+/libfuzzer/output/learner01/queue/

@@ -12,6 +12,8 @@ def parse_csv(path):
             #print('line', line)
             try:
                 state, is_reachable = line.strip().split(',')
+                is_reachable = is_reachable.strip()
+                state = state.strip()
             except ValueError:
                 line = line.strip('\n')
                 state, is_reachable = line.strip().split('\t')
