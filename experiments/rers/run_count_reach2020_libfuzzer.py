@@ -35,7 +35,7 @@ def check_reached(problem, problemset, rers_basepath, fuzzer_basepath):
     return set([int(re.sub('error_', '', x)) for x in errors])
 
 
-problems = [f'Problem{x}' for x in range(12, 20)]
+problems = [f'Problem{x}' for x in range(11, 20)]
 problemset = "SeqReachabilityRers2020"
 
 rers_basepath = "/home/tom/projects/lstar/rers"

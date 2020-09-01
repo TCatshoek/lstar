@@ -29,8 +29,8 @@ def check_reached(problem, problemset, rers_basepath, afl_basepath):
 problems = [f'Problem{x}' for x in range(11, 20)]
 problemset = "SeqReachabilityRers2020"
 rers_basepath = "/home/tom/projects/lstar/rers"
-afl_basepath =   "/home/tom/afl/apta_backup/tmpfs/2020_plusplus"
-afl_basepath_2 = "/home/tom/afl/apta_backup/tmpfs/2020_fast"
+afl_basepath =   "/home/tom/afl/apta_backup_old/tmpfs/2020_plusplus"
+afl_basepath_2 = "/home/tom/afl/apta_backup_old/tmpfs/2020_fast"
 
 
 for problem in problems:

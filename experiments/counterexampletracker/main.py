@@ -10,6 +10,7 @@ from learners.mealylearner import MealyLearner
 from suls.caches.rerstriecache import RersTrieCache
 
 from suls.rersconnectorv4 import RERSConnectorV4
+from suls.rerssoconnector import RERSSOConnector
 from teachers.teacher import Teacher
 from rers.check_result import check_result
 
@@ -26,13 +27,13 @@ ct = CounterexampleTracker()
 cache = '../../cache/problem12_genetic2'
 
 # Try to learn a state machine for one of the RERS problems
-sul = RersTrieCache(
-    RERSConnectorV4(f'../../rers/TrainingSeqReachRers2019/{problem}/{problem}'),
-    storagepath=cache
-)#.load(cache)
+problem = "Problem12"
+problemset = "TrainingSeqReachRers2019"
+
+sul = RERSSOConnector(f"../../rers/{problemset}/{problem}/{problem}.so")
 
 eqc = StackedChecker(
-    GeneticEquivalenceChecker(sul, ct, pop_n=100),
+    GeneticEquivalenceChecker(sul, ct, pop_n=10000),
     SmartWmethodEquivalenceCheckerV2(sul,
                                    horizon=9,
                                    stop_on={'invalid_input'},
