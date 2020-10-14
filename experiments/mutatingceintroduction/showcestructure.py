@@ -1,31 +1,24 @@
-
 import tempfile
 
+from equivalencecheckers.accseqfuzzer import AccSeqFuzzer
 from equivalencecheckers.wmethod import WmethodEquivalenceChecker, RersWmethodEquivalenceChecker, \
-    SmartWmethodEquivalenceChecker, SmartWmethodEquivalenceCheckerV2, SmartWmethodEquivalenceCheckerV4
-from equivalencecheckers.StackedChecker import StackedChecker
-from equivalencecheckers.genetic import GeneticEquivalenceChecker
+    SmartWmethodEquivalenceChecker, SmartWmethodEquivalenceCheckerV2, WmethodHorizonEquivalenceChecker, \
+    SmartWmethodEquivalenceCheckerV3
 from learners.TTTmealylearner import TTTMealyLearner
-from learners.mealylearner import MealyLearner
 from suls.caches.rerstriecache import RersTrieCache
-
 from suls.rersconnectorv4 import RERSConnectorV4
 from suls.rerssoconnector import RERSSOConnector
 from teachers.teacher import Teacher
 from rers.check_result import check_result
-
 from util.instrumentation import CounterexampleTracker
 
-import sys
-
+# Try to learn a state machine for one of the RERS problems
+# Problem 11 is the easiest training problem
 from util.statstracker import StatsTracker
 
-sys.path.extend(['/home/tom/projects/lstar'])
-
 problem = "Problem12"
-
-ct = CounterexampleTracker()
-#ct.load(f'counterexamples_{problem}.p')
+problemset = 'TrainingSeqReachRers2019'
+problem_path = path = f"../../rers/{problemset}/{problem}/{problem}.so"
 
 # Setup logging
 statstracker = StatsTracker({
@@ -40,41 +33,42 @@ statstracker = StatsTracker({
     write_on_change={'errors'}
 )
 
+# Setup counterexample tracking
+ct = CounterexampleTracker()
 
-# Try to learn a state machine for one of the RERS problems
-problem = "Problem12"
-problemset = "TrainingSeqReachRers2019"
+sul = RERSSOConnector(problem_path)
 
-sul = RERSSOConnector(f"../../rers/{problemset}/{problem}/{problem}.so")
+# We use a specialized W-method equivalence checker which features
+# early stopping on invalid inputs, which speeds things up a lot
+eqc = SmartWmethodEquivalenceCheckerV3(sul,
+                                     horizon=11,
+                                     stop_on={'invalid_input'},
+                                     stop_on_startswith={'error'},
+                                     order_type='ce count')
+# eqc = WmethodHorizonEquivalenceChecker(sul, 3)
 
-eqc = StackedChecker(
-    GeneticEquivalenceChecker(sul, ct, pop_n=10000),
-    SmartWmethodEquivalenceCheckerV4(sul,
-                                   horizon=9,
-                                   stop_on={'invalid_input'},
-                                   stop_on_startswith={'error'})
-                                   #order_type='ce count')
-)
 # Store found counterexamples
 def onct(ctex):
     ct.add(ctex)
     ct.save(f'counterexamples_{problem}.p')
 eqc.onCounterexample(onct)
 
+
+#eqc = AccSeqFuzzer(sul, depth=100, num_samples=1000)
 # Set up the teacher, with the system under learning and the equivalence checker
 teacher = Teacher(sul, eqc)
 
 # Set up the learner who only talks to the teacher
-learner = TTTMealyLearner(teacher)
-#learner.enable_checkpoints('checkpoints3')
-#learner.load_checkpoint('/home/tom/projects/lstar/experiments/counterexampletracker/checkpoints3/cZsmSu/2020-05-06_20:00:33:790987')
+# We let it save checkpoints of every intermediate hypothesis
+learner = TTTMealyLearner(teacher)#.enable_checkpoints("checkpoints")
+
 # Get the learners hypothesis
 hyp = learner.run(
     show_intermediate=True,
     render_options={'ignore_self_edges': ['error', 'invalid']},
     on_hypothesis=lambda x: check_result(x, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv')
 )
-
 print("SUCCES", check_result(hyp, f'../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 
 hyp.render_graph(render_options={'ignore_self_edges': ['error', 'invalid']})
+
