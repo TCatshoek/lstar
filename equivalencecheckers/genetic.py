@@ -116,6 +116,7 @@ class GeneticEquivalenceChecker(EquivalenceChecker):
 
             # Run all the potential counterexample traces
             for trace in pop.pop:
+                #print(trace)
                 equivalent, input = self._are_equivalent(test_sul, trace)
                 if not equivalent:
                     return False, self.minimize(input, test_sul)

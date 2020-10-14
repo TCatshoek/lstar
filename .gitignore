@@ -201,3 +201,5 @@ klee/
 /libfuzzer/SeqLtlRers2019/
 /libfuzzer/SeqReachabilityRers2019/
 /libfuzzer/output/learner01/queue/
+/experiments/rers/results_old/
+/experiments/**/*.html

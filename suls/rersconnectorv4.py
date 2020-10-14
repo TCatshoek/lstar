@@ -73,15 +73,15 @@ class RERSConnectorV4(SUL):
                     result = match.group(0)
                 elif match := re.match("error_[0-9]+", line):
                     tmp = match.group(0)
-                    self.error_cache[" ".join(inputs)] = tmp
+                    #self.error_cache[" ".join(inputs)] = tmp
                     return tmp
                 elif re.match("Invalid input:", line):
-                    self.invalid_cache.add(inputs[0:idx + 1])
+                    #self.invalid_cache.add(inputs[0:idx + 1])
                     result = "invalid_input"
-                if "error" not in lines[idx + 1]:
-                    self.cache[" ".join(inputs[0:idx + 1])] = result
+                #if "error" not in lines[idx + 1]:
+                    #self.cache[" ".join(inputs[0:idx + 1])] = result
 
-        self.cache[" ".join(inputs)] = result
+        #self.cache[" ".join(inputs)] = result
 
         return result
 

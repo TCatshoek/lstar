@@ -24,6 +24,8 @@ s2.add_edge('a', s2)
 s3.add_edge('a', s3)
 s3.add_edge('b', s3)
 
+
+
 # Or use a regex to define the state machine
 #sm = RegexMachine('b*a+b.*')
 

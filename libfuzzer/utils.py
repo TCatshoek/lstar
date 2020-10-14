@@ -54,20 +54,23 @@ class CorpusUtils:
         else:
             corpus_path = self.corpus_path
 
-        testcases = []
+        #testcases = []
         print(len(list(corpus_path.glob('*'))), "testcases in corpus directory")
 
-        for testcase_file in corpus_path.glob('*'):
-            testcase = strip_invalid(parse_file(testcase_file), self.alphabet)
+        def testcases():
+            for testcase_file in corpus_path.glob('*'):
+                testcase = strip_invalid(parse_file(testcase_file), self.alphabet)
 
-            if len(testcase) > 0:
-                if return_time_date:
-                    time_date = testcase_file.stat().st_mtime
-                    testcases.append((testcase, time_date))
-                else:
-                    testcases.append(testcase)
+                if len(testcase) > 0:
+                    if return_time_date:
+                        time_date = testcase_file.stat().st_mtime
+                        #testcases.append((testcase, time_date))
+                        yield (testcase, time_date)
+                    else:
+                        #testcases.append(testcase)
+                        yield testcase
 
-        return testcases
+        return testcases()
 
     def get_plot_data(self):
         print(f"Gathering plot data from {self.corpus_path}")

@@ -28,7 +28,7 @@ sul = RersTrieCache(
 # We use a specialized W-method equivalence checker which features
 # early stopping on invalid inputs, which speeds things up a lot
 eqc = SmartWmethodEquivalenceCheckerV2(sul,
-                                     horizon=5,
+                                     horizon=4,
                                      stop_on={'invalid_input'},
                                      stop_on_startswith={'error'})
                                      #order_type='ce count')

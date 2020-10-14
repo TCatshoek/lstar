@@ -94,21 +94,21 @@ class RERSConnectorV2(SUL):
                 if match := re.match("[0-9]+$", line):
                     result = match.group(0)
                 elif re.match("Invalid input:", line):
-                    self.invalid_cache.add(inputs[0:idx + 1])
+                    #self.invalid_cache.add(inputs[0:idx + 1])
                     result = "invalid_input"
                 elif match := re.match("error_[0-9]+", line):
                     tmp = match.group(0)
-                    self.error_cache[" ".join(inputs)] = tmp
+                    #self.error_cache[" ".join(inputs)] = tmp
                     return tmp
 
-                if "error" not in lines[idx + 1]:
-                    self.cache[inputs[0:idx + 1]] = result
+              #  if "error" not in lines[idx + 1]:
+                    #self.cache[inputs[0:idx + 1]] = result
 
-        self.cache[inputs] = result
+        #self.cache[inputs] = result
 
-        self.n_queries += 1
-        if self.n_queries % self.save_every_n == 0:
-            self._save_cache()
+        # self.n_queries += 1
+        # if self.n_queries % self.save_every_n == 0:
+        #     self._save_cache()
 
         return result
 
@@ -118,10 +118,10 @@ class RERSConnectorV2(SUL):
 
 
         #Check if the input is already in cache
-        if inputs in self.cache.keys():
-            self.needs_reset = False
-            #print("[Cache hit]", inputs)
-            return self.cache[inputs]
+        # if inputs in self.cache.keys():
+        #     self.needs_reset = False
+        #     #print("[Cache hit]", inputs)
+        #     return self.cache[inputs]
 
         # Check prefixes
         # if inputs in self.invalid_cache:
