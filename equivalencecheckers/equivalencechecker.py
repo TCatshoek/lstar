@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from suls.sul import SUL
 from typing import Tuple, Iterable, Callable, Optional
-
+import util.statstracker as stats
 
 class EquivalenceChecker(ABC):
     def __init__(self, sul):
@@ -28,6 +28,8 @@ class EquivalenceChecker(ABC):
         hyp_output = fsm.process_input(input)
         self.sul.reset()
         sul_output = self.sul.process_input(input)
+
+        stats.increment('test_query')
 
         if self._teacher is not None:
             self._teacher.test_query_counter += 1
