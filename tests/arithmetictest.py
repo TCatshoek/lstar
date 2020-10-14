@@ -82,7 +82,7 @@ if __name__ == "__main__":
     eqc = SmartWmethodEquivalenceChecker(sul, horizon=3)
 
     eqc = StackedChecker(
-        #GeneticEquivalenceChecker(sul, ct, pop_n=10000),
+        GeneticEquivalenceChecker(sul, ct, pop_n=100000),
         SmartWmethodEquivalenceChecker(sul, horizon=3, order_type='ce count')
     )
 
@@ -102,6 +102,8 @@ if __name__ == "__main__":
         show_intermediate=False,
         on_hypothesis=print_stats
     )
+
+    hyp.render_graph()
 
 
     #learner.DTree.render_graph()

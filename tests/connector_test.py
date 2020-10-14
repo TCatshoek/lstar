@@ -13,7 +13,7 @@ r1 = RERSConnectorV2(path, terminator='-1')
 r2 = RERSConnectorV3(path)
 r3 = RERSConnectorV4(path)
 r4 = RERSSOConnector(f'{path}.so')
-r5 = TrieCache(r3)
+# r5 = TrieCache(r3)
 alphabet = r1.get_alphabet()
 
 n = 1000
@@ -38,5 +38,7 @@ def test(connector, name):
     end = time.perf_counter() - start
     print(f"{name} took {end:0.5f} s")
 
+test(r1, 'v2')
+test(r2, 'v3')
 test(r3, 'v4')
 test(r4, 'so')
