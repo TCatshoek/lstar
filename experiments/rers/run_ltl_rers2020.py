@@ -24,7 +24,7 @@ import argparse
 
 afl_basedir = '/home/tom/afl/2020_plusplus'
 #afl_basedir = '/home/tom/projects/lstar/afl'
-problems = [f'Problem{x}' for x in range(1,10)]
+problems = [f'Problem{x}' for x in range(1,2)]
 problemset = 'SeqLtlRers2020'
 
 horizon = 3
@@ -60,20 +60,20 @@ for problem in problems:
     afl_dir = f'{afl_basedir}/{problemset}/{problem}'
     bin_path = f'{afl_basedir}/{problemset}/{problem}/{problem}'
     eqc = StackedChecker(
-        SmartWmethodEquivalenceCheckerV2(sul,
-                                         horizon=1,
-                                         stop_on={'invalid_input'},
-                                         stop_on_startswith={'error'}),
-        AFLEquivalenceCheckerV2(sul, afl_dir, bin_path,
-                                eqchecktype=EQCheckType.BOTH,
-                                enable_dtraces=True),
+        # SmartWmethodEquivalenceCheckerV2(sul,
+        #                                  horizon=1,
+        #                                  stop_on={'invalid_input'},
+        #                                  stop_on_startswith={'error'}),
+        # AFLEquivalenceCheckerV2(sul, afl_dir, bin_path,
+        #                         eqchecktype=EQCheckType.BOTH,
+        #                         enable_dtraces=True),
         NuSMVEquivalenceChecker(sul, constrpath, mappingpath,
                                 n_unrolls=1000,
                                 enable_dtraces=True),
-        SmartWmethodEquivalenceCheckerV2(sul,
-                                         horizon=horizon,
-                                         stop_on={'invalid_input'},
-                                         stop_on_startswith={'error'}),
+        # SmartWmethodEquivalenceCheckerV2(sul,
+        #                                  horizon=horizon,
+        #                                  stop_on={'invalid_input'},
+        #                                  stop_on_startswith={'error'}),
 
     )
 

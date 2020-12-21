@@ -46,7 +46,8 @@ class MarkovChain:
             return random.choice(list(self.symbols))
 
         (next_symbols, probabilities) = zip(*self.probabilities[ngram].items())
-        return random.choices(next_symbols, probabilities)[0]
+        next_symbol = random.choices(next_symbols, probabilities)[0]
+        return next_symbol
 
 
     def generate(self, length):
@@ -62,7 +63,7 @@ class MarkovChain:
         sequence = start_ngram
         while len(sequence) < length:
             cur_ngram = sequence[-self.n:]
-            sequence += tuple(self.next(cur_ngram))
+            sequence += (self.next(cur_ngram),)
 
         return sequence
 

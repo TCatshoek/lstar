@@ -93,7 +93,7 @@ class LibFuzzerEquivalenceChecker(EquivalenceChecker):
                 if not equivalent:
                     return equivalent, tuple(counterexample)
 
-        return equivalent, tuple(counterexample)
+        return equivalent, None
 
 
 

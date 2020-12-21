@@ -203,3 +203,10 @@ klee/
 /libfuzzer/output/learner01/queue/
 /experiments/rers/results_old/
 /experiments/**/*.html
+/venv_bak/
+
+/experiments/**/*
+!/experiments/**/*.py
+/venv2/
+/angr
+/angr/angr-dev/angr-utils/angr_utils.egg-info/

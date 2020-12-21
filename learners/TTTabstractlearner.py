@@ -17,6 +17,7 @@ from tabulate import tabulate
 
 import util.statstracker as stats
 
+from math import ceil, floor
 
 class DTreeNode:
     def __init__(self, isLeaf, dTree, suffix=None, state=None, temporary=False, isRoot=False, id=None):
@@ -560,9 +561,6 @@ class TTTAbstractLearner(Learner, ABC):
             q1 = self.query(self.get_access_sequence(u) + a + v)
             q2 = self.query(self.get_access_sequence(u + a) + v)
 
-            # print('q1:', q1)
-            # print('q2:', q2)
-            # print()
             if q1 != q2:
                 print('decomposition:')
                 print(u)
@@ -570,7 +568,103 @@ class TTTAbstractLearner(Learner, ABC):
                 print(v)
                 return u, a, v
 
-        assert False, 'Failed to decompose counterexample'
+        assert False, f'Failed to decompose counterexample: {sequence}'
+
+    def decompose_broken(self, sequence):
+        if len(sequence) == 1:
+            return tuple(), sequence, tuple()
+
+        if len(sequence) == 2:
+            return self.decompose_slow(sequence)
+
+        # L = 0
+        # R = len(sequence) - 1
+        #
+        # while L != R:
+        #     m = ceil((L + R) / 2)
+        #
+        #     u = sequence[:m]
+        #     a = (sequence[m],)
+        #     v = sequence[m + 1:]
+        #
+        #     q1 = self.query(self.get_access_sequence(u) + a + v)
+        #     q2 = self.query(self.get_access_sequence(u + a) + v)
+        #
+        #     if q1 == q2:
+        #         L = m
+        #     else:
+        #         R = m - 1
+        #
+        #     assert L <= R,  f'Failed to decompose counterexample: {sequence}'
+
+        L = 0
+        R = len(sequence)
+
+        # def A(m):
+        #     u = sequence[:m]
+        #     a = (sequence[m],)
+        #     v = sequence[m + 1:]
+        #
+        #     q1 = self.query(self.get_access_sequence(u) + a + v)
+        #     q2 = self.query(self.get_access_sequence(u + a) + v)
+        #
+        #     return q1 == q2
+        def pi(w, i):
+            return self.get_access_sequence(w[0:i]) + w[i:]
+
+        hyp = self.construct_hypothesis()
+        def A(i):
+            return 1 if self.query(pi(sequence, i)) == hyp.process_input(sequence) else 0
+
+        while R - L > 1:
+
+            m = floor((L + R) / 2)
+
+            if A(m) == 0:
+                L = m
+            else:
+                R = m
+
+            assert L <= R, f'Failed to decompose counterexample: {sequence}'
+
+        m = L
+        u = sequence[:m]
+        a = (sequence[m],)
+        v = sequence[m + 1:]
+
+        print('decomposition:')
+        print(u)
+        print(a)
+        print(v)
+
+        q1 = self.query(self.get_access_sequence(u) + a + v)
+        q2 = self.query(self.get_access_sequence(u + a) + v)
+
+        if q1 == q2:
+            print('q1', q1, 'q2', q2)
+
+
+        # print("slow decomposition")
+        # if (u, a, v) != self.decompose_slow(sequence):
+        #     L = 0
+        #     R = len(sequence) - 1
+        #
+        #     while R != L:  # R - L > 1:
+        #
+        #         m = floor((L + R) / 2)
+        #         # m = (R - L) // 2 + L
+        #
+        #         q1, q2 = run_split(m)
+        #         # q3, q4 = run_split(m + 1)
+        #
+        #         if q1 == q2:  # and q3 != q4:
+        #             L = m + 1
+        #         else:
+        #             R = m
+        #
+        #         assert L <= R, f'Failed to decompose counterexample: {sequence}'
+
+        return u, a, v
 
     def get_access_sequence(self, sequence):
         # find what state we end up in by following the sequence

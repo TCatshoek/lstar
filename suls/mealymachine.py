@@ -119,6 +119,13 @@ class MealyMachine(SUL):
             if render_options is None:
                 render_options = {}
 
+            # Extract color options if present
+            node_color = {}
+            if 'node_attributes' in render_options:
+                for state, attributes in render_options['node_attributes'].items():
+                    if 'color' in attributes:
+                        node_color[state] = attributes['color']
+
             g = Digraph('G', filename=filename)
             g.attr(rankdir='LR')
 
@@ -132,7 +139,11 @@ class MealyMachine(SUL):
 
             # Draw initial state
             g.attr('node', shape='circle')
-            g.node(self.initial_state.name)
+
+            if self.initial_state in node_color:
+                g.node(self.initial_state.name, color=node_color[self.initial_state], style='filled')
+            else:
+                g.node(self.initial_state.name)
 
             g.edge('startz', self.initial_state.name)
 
@@ -145,7 +156,11 @@ class MealyMachine(SUL):
                     # Draw other states, but only once
                     if other_state not in visited and other_state not in to_visit:
                         to_visit.append(other_state)
-                        g.node(other_state.name)
+                        if other_state in node_color:
+                            g.node(other_state.name, color=node_color[other_state], style='filled')
+                        else:
+                            g.node(other_state.name)
+
 
                     # Draw edges too
                     ignore_self_edges = []

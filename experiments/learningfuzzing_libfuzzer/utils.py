@@ -75,19 +75,18 @@ class CorpusUtils:
     def get_plot_data(self):
         print(f"Gathering plot data from {self.corpus_path}")
         # Gather testcases from corpus
-        # testcases_w_time = self.gather_testcases(return_time_date=True)
-        # We don't do this anymore since it's a generator now
+        testcases_w_time = self.gather_testcases(return_time_date=True)
 
         # Get the start and end times
         start_time, end_time = None, None
-        for _, time in self.gather_testcases(return_time_date=True):
+        for _, time in testcases_w_time:
             if start_time is None or time < start_time:
                 start_time = time
             if end_time is None or time > end_time:
                 end_time = time
 
         # Filter on crashing testcases
-        crashing_w_time = [(testcase, time, output) for testcase, time in self.gather_testcases(return_time_date=True)
+        crashing_w_time = [(testcase, time, output) for testcase, time in testcases_w_time
                            if (output := self.extract_error(testcase)) is not None]
 
         # Group by error

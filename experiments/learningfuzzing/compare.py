@@ -37,9 +37,9 @@ for idx, problem in enumerate(seqreach2019trainingproblems):
     ttt_afl_wtraces_times, ttt_afl_wtraces_counts = get_error_plot_data(ttt_afl_wtraces_logs[idx])
 
     plt.step(afl_times, afl_counts, label='afl')
-    plt.step(ttt_times, ttt_counts, label='ttt')
-    plt.step(ttt_afl_times, ttt_afl_counts, label='ttt + afl')
-    plt.step(ttt_afl_wtraces_times, ttt_afl_wtraces_counts, label='ttt + afl-wtraces')
+    plt.step(ttt_times, ttt_counts, label='w-method')
+    plt.step(ttt_afl_times, ttt_afl_counts, label='w-method + afl')
+    plt.step(ttt_afl_wtraces_times, ttt_afl_wtraces_counts, label='w-method + afl-wtraces')
 
     plt.title(f'Method comparison - {problemset} - {problem}')
     plt.xlabel('time(s)')

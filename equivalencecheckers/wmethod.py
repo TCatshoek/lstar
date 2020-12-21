@@ -486,7 +486,7 @@ class SmartWmethodEquivalenceCheckerV4(EquivalenceChecker):
                 sul_output_pre = self.sul.process_input(access_sequence + cur)
                 if sul_output_pre in self.stop_on or any([sul_output_pre.startswith(x) for x in self.stop_on_startswith]):
                     self.stopping_set.add(access_sequence + cur)
-                    continue
+                    #continue
                 elif len(cur) <= depth:
                     for a in A:
                         if access_sequence + cur + a not in self.stopping_set\

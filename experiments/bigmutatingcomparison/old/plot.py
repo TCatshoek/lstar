@@ -32,12 +32,13 @@ def get_error_plot_data(log_path):
     return times, counts
 
 if __name__ == '__main__':
-    pn = 13
+    pn = 11
+    problemset = "SeqReachabilityRers2019"
 
-    path = f'mutatingproblem{pn}/Problem{pn}_normal.log'
+    path = f'mutating/logs/{problemset}/Problem{pn}.log'
     times, counts = get_error_plot_data(path)
 
-    path2 = f'mutatingproblem{pn}/Problem{pn}_mutating.log'
+    path2 = f'../wmethod/logs/{problemset}/Problem{pn}.log'
     times2, counts2 = get_error_plot_data(path)
 
     log1 = read_log(path)
@@ -54,8 +55,8 @@ if __name__ == '__main__':
     states2 = log2[' state_count']
 
     alpha = 0.8
-    plt.step(times1, states1, label='W-method', alpha=alpha)
-    plt.step(times2, states2, label='Mutating + W-method', alpha=alpha)
+    plt.step(times1, states1, label='Mutating + W-method', alpha=alpha)
+    plt.step(times2, states2, label='W-method', alpha=alpha)
 
     plt.legend()
 
@@ -64,10 +65,10 @@ if __name__ == '__main__':
     plt.xlabel('time(s)')
     plt.ylabel('reached states')
 
-    if pn == 11:
-        plt.xlim(left=-0.5, right=10)
-    else:
-        plt.xlim(left=plt.xlim()[0], right=min(max(times2), max(times1)))
+    # if pn == 11:
+    #     plt.xlim(left=-0.5, right=10)
+    # else:
+    #     plt.xlim(left=plt.xlim()[0], right=min(max(times2), max(times1)))
 
     plt.savefig(f'problem_{pn}_mutating')
     plt.show()

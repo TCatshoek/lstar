@@ -3,11 +3,11 @@ import sys
 from equivalencecheckers.libfuzzerequivalencechecker import LibFuzzerEquivalenceChecker
 from equivalencecheckers.nusmv import NuSMVEquivalenceChecker
 
-sys.path.extend(['/home/tom/projects/lstar'])
-import os
-os.chdir('/home/tom/projects/lstar/experiments/rers')
+#sys.path.extend(['/home/tom/projects/lstar'])
+#import os
+#os.chdir('/home/tom/projects/lstar/experiments/rers')
 
-print(os.getcwd())
+#print(os.getcwd())
 
 from pathlib import Path
 from equivalencecheckers.AFLequivalencecheckerV2 import AFLEquivalenceCheckerV2, EQCheckType
@@ -24,14 +24,31 @@ from util.nusmv import NuSMVUtils
 import argparse
 
 
-problems = [f'Problem{x}' for x in range(1, 4)]
+problems = ['Problem9']
 problemset = 'TrainingSeqLtlRers2020'
-problemset = 'SeqLtlRers2019'
+problemset = 'SeqLtlRers2020'
 horizon = 3
 
 scores = []
+times = []
 
 for problem in problems:
+
+    logdir = Path(f'./logs/{problemset}')
+    logdir.mkdir(parents=True, exist_ok=True)
+
+    statstracker = StatsTracker({
+        'membership_query': 0,
+        'equivalence_query': 0,
+        'test_query': 0,
+        'state_count': 0,
+        'error_count': 0,
+        'errors': set()
+    },
+        log_path=logdir.joinpath(f'{problem}.log'),
+        write_on_change={'state_count', 'error_count'}
+    )
+    start = datetime.now()
 
     from rers.check_ltl_result import check_result
 
@@ -43,26 +60,27 @@ for problem in problems:
     else:
         solutionspath = f'/home/tom/projects/lstar/rers/{problemset}/{problem}/constraints-solution.csv'
 
-
-
     path = f"../../rers/{problemset}/{problem}/{problem}.so"
     sul = RERSSOConnector(path)
 
     fuzzerpath = Path(f'/home/tom/projects/lstar/libfuzzer/{problemset}/{problem}')
 
     eqc = StackedChecker(
+        SmartWmethodEquivalenceCheckerV2(sul,
+                                         horizon=1,
+                                         stop_on={'invalid_input'},
+                                         stop_on_startswith={'error'}),
         LibFuzzerEquivalenceChecker(sul,
-                                    corpus_path=fuzzerpath.joinpath("corpus"),
-                                    fuzzer_path=fuzzerpath.joinpath(f'{problem}_fuzz')),
+                                    corpus_path=Path(fuzzerpath).joinpath("corpus"),
+                                    fuzzer_path=Path(fuzzerpath).joinpath(f'{problem}_fuzz')),
+        NuSMVEquivalenceChecker(sul, constrpath, mappingpath,
+                                n_unrolls=1000,
+                                enable_dtraces=True),
         SmartWmethodEquivalenceCheckerV2(sul,
                                          horizon=horizon,
                                          stop_on={'invalid_input'},
                                          stop_on_startswith={'error'}),
-        #NuSMVEquivalenceChecker(sul, constrpath, mappingpath, n_unrolls=10),
-        # SmartWmethodEquivalenceCheckerV2(sul,
-        #                                  horizon=horizon,
-        #                                  stop_on={'invalid_input'},
-        #                                  stop_on_startswith={'error'})
+
     )
 
     # Set up the teacher, with the system under learning and the equivalence checker
@@ -76,6 +94,8 @@ for problem in problems:
         show_intermediate=False,
         on_hypothesis=savehypothesis(f'hypotheses/{problemset}/{problem}', f'{problem}')
     )
+
+    end_learning = datetime.now()
 
     # hyp.render_graph()
 
@@ -95,6 +115,13 @@ for problem in problems:
         for i, r in enumerate(ltl_answers):
             f.write(f'{problem_number}, {i}, {r[1]}\n')
 
+    end = datetime.now()
+
+    print('Learning time', end_learning - start)
+    print('Checking time', end - end_learning)
+    print('Total time', end - start)
+    times.append(end - start)
+
 print("-------RESULTS-------")
-for problem, (correct, total) in zip(problems, scores):
-    print(f'{problem}: {correct}/{total}')
+for problem, (correct, total), total_time in zip(problems, scores, times):
+    print(f'{problem}: {correct}/{total} - {total_time}')

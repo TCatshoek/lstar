@@ -24,51 +24,52 @@ def read_log(path):
 
     return pd.read_csv(tmpfile)
 
-def get_error_plot_data(log_path):
+def get_plot_data(log_path, header):
     data = read_log(log_path)
     times = data['# timestamp']
     times = times - min(times)
-    counts = data[' error_count']
+    counts = data[header]
     return times, counts
 
 if __name__ == '__main__':
     pn = 13
 
-    path = f'mutatingproblem{pn}/Problem{pn}_normal.log'
-    times, counts = get_error_plot_data(path)
+    path = f'Problem{pn}_mutation_cluster.log'
+    times, counts = get_plot_data(path, ' state_count')
 
-    path2 = f'mutatingproblem{pn}/Problem{pn}_mutating.log'
-    times2, counts2 = get_error_plot_data(path)
+    path2 = f'Problem{pn}_mutation_nocluster.log'
+    times2, counts2 = get_plot_data(path, ' state_count')
 
     log1 = read_log(path)
     log2 = read_log(path2)
 
     times1 = log1['# timestamp']
     times1 = times1 - min(times1)
-    times1 = times1 #/ 3600
+    times1 = times1 #/ 60
     times2 = log2['# timestamp']
     times2 = times2 - min(times2)
-    times2 = times2 #/ 3600
+    times2 = times2 #/ 60
 
     states1 = log1[' state_count']
     states2 = log2[' state_count']
 
     alpha = 0.8
-    plt.step(times1, states1, label='W-method', alpha=alpha)
-    plt.step(times2, states2, label='Mutating + W-method', alpha=alpha)
+    plt.step(times1, states1, label='With clustering', alpha=alpha)
+    plt.step(times2, states2, label='Without clustering', alpha=alpha)
 
     plt.legend()
 
     plt.title(f"Problem {pn}")
 
+    if pn == 11:
+        #plt.xlim(left=-0.5, right=min(max(times2), max(times1)))
+        print('lol')
+    else:
+        plt.xlim(left=plt.ylim()[0], right=min(max(times2), max(times1)))
+
     plt.xlabel('time(s)')
     plt.ylabel('reached states')
 
-    if pn == 11:
-        plt.xlim(left=-0.5, right=10)
-    else:
-        plt.xlim(left=plt.xlim()[0], right=min(max(times2), max(times1)))
-
-    plt.savefig(f'problem_{pn}_mutating')
+    plt.savefig(f'problem_{pn}_mutatingcomparison')
     plt.show()
 

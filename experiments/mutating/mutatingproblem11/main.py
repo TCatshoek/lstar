@@ -16,9 +16,11 @@ from util.instrumentation import CounterexampleTracker
 # Problem 11 is the easiest training problem
 from util.statstracker import StatsTracker
 
-problem = "Problem11"
+problem = "Problem13"
 problemset = 'TrainingSeqReachRers2019'
 problem_path = path = f"../../../rers/{problemset}/{problem}/{problem}.so"
+
+horizon = 12 #og 12
 
 # Setup logging
 statstracker = StatsTracker({
@@ -29,7 +31,7 @@ statstracker = StatsTracker({
     'error_count': 0,
     'errors': set()
 },
-    log_path=f'{problem}_normal.log',
+    log_path=f'{problem}_normal_{horizon}.log',
     write_on_change={'errors'}
 )
 
@@ -41,7 +43,7 @@ sul = RERSSOConnector(problem_path)
 # We use a specialized W-method equivalence checker which features
 # early stopping on invalid inputs, which speeds things up a lot
 eqc = SmartWmethodEquivalenceCheckerV4(sul,
-                                     horizon=12,
+                                     horizon=horizon,
                                      stop_on={'invalid_input'},
                                      stop_on_startswith={'error'},
                                      order_type='ce count')
@@ -68,7 +70,9 @@ hyp = learner.run(
     render_options={'ignore_self_edges': ['error', 'invalid']},
     on_hypothesis=lambda x: check_result(x, f'../../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv')
 )
+statstracker.write_log()
+
 print("SUCCES", check_result(hyp, f'../../../rers/TrainingSeqReachRers2019/{problem}/reachability-solution-{problem}.csv'))
 
-hyp.render_graph(render_options={'ignore_self_edges': ['error', 'invalid']})
+#hyp.render_graph(render_options={'ignore_self_edges': ['error', 'invalid']})
 

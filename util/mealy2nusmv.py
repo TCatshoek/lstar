@@ -322,7 +322,7 @@ def rersltl2smv_withintermediate(ltlpath, mappingpath):
                 print('{:10}'.format("Written:"), line.strip())
                 ltl_lines.append(line)
 
-    return [f'LTLSPEC NAME rule{i} := {line}' for i, line in enumerate(ltl_lines)]
+    return [f'LTLSPEC NAME rule{i} := {line}\n' for i, line in enumerate(ltl_lines)]
 
 def constructmapping(mappingpath):
     name_to_c = {}
@@ -358,7 +358,7 @@ if __name__ == "__main__":
     constrpath = '/home/tom/projects/lstar/rers/TrainingSeqLtlRers2020/Problem1/constraints-Problem1.txt'
     mappingpath= '/home/tom/projects/lstar/rers/TrainingSeqLtlRers2020/Problem1/Problem1_alphabet_mapping_C_version.txt'
 
-    mealy_lines = mealy2nusmv_withintermediate(mm, None)
+    mealy_lines = mealy2nusmv_withintermediate(mm)
     ltl_lines = rersltl2smv_withintermediate(constrpath, mappingpath)
 
     with open('test.smv', 'w') as file:

@@ -27,7 +27,7 @@ for idx, problem in enumerate(seqreach2019trainingproblems):
     plt.ylabel('reached error states')
     plt.legend()
 
-    plt.savefig(f"{figpath}/{problem}_comparison.png")
+    #plt.savefig(f"{figpath}/{problem}_comparison.png")
     plt.show()
 
     # ------------------ Zoomed

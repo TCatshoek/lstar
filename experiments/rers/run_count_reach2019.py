@@ -35,11 +35,11 @@ def check_reached(problem, problemset, rers_basepath, fuzzer_basepath):
     return set([int(re.sub('error_', '', x)) for x in errors])
 
 
-problems = [f'Problem{x}' for x in range(15, 20)]
+problems = [f'Problem{x}' for x in range(18, 19)]
 problemset = "SeqReachabilityRers2019"
 
 rers_basepath = "/home/tom/projects/lstar/rers"
-fuzzer_basepath = "/home/tom/projects/lstar/libfuzzer"
+fuzzer_basepath = "/home/tom/afl/libfuzz"
 
 for problem in problems:
 
