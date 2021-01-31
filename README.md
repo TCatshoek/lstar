@@ -1,3 +1,5 @@
+## OUTDATED - will update asap
+
 # lstar
 
 My implementation of the L* algorithm by Dana Angluin. Also contains a modified version that learns mealy machines instead of DFAs.
