@@ -152,6 +152,7 @@ checkpoint*/
 
 # Angr and klee experiments
 angr/
+angr/*
 klee/
 
 # LTL checking models

@@ -98,9 +98,11 @@ class FSWatchingFileYeeter:
         self.observer.join()
 
 
-problem = "Problem13"
-problemset = "TrainingSeqReachRers2019"
-libfuzzer_basepath = "/home/tom/afl/thesis_benchmark_2/libFuzzer"
+problem = "Problem11"
+#problemset = "TrainingSeqReachRers2019"
+problemset = "SeqReachabilityRers2019"
+#libfuzzer_basepath = "/home/tom/afl/thesis_benchmark_2/libFuzzer"
+libfuzzer_basepath = "/home/tom/afl/thesis_benchmark_4/"
 rers_basepath = "../../rers"
 
 copier = FSWatchingCopier(Path(libfuzzer_basepath)

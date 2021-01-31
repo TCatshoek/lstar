@@ -26,12 +26,12 @@ from util.nusmv import NuSMVUtils
 import argparse
 
 
-horizon = 12
+horizon = 6
 run_start = datetime.now().strftime('%Y-%m-%d_%H:%M:%S')
 
 problem = 'Problem19'
 problemset = "SeqReachabilityRers2019"
-prefix = "wmethod12"
+prefix = f"wmethod{horizon}"
 
 path = f"../../rers/{problemset}/{problem}/{problem}.so"
 
